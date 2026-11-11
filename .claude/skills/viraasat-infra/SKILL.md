@@ -1,6 +1,6 @@
 ---
 name: viraasat-infra
-description: Operational reference for how Viraasat Griha's infrastructure is wired together — Vercel (hosting), Turso (the production database, which also stores every photo/video as a blob), and Shopify (storefront, cart, checkout, customer login). Use this skill whenever working on deployment problems, checking why content or images aren't showing on the live site, debugging a Turso connection or deciding which Turso database is actually the live one, diagnosing a Shopify checkout or storefront-password issue, or any question about how this project's infra fits together — even if the user doesn't name a specific service, e.g. "why isn't this showing on vercel", "is turso connected", "shopify checkout isn't working", "which database do we use", "images are broken on the site", "env vars aren't working".
+description: Operational reference for how Viraasat Griha's infrastructure is wired together — Vercel (hosting), Turso (the production database, holding editorial content and media metadata), Cloudinary (hosts the actual photo/video files), and Shopify (storefront, cart, checkout, customer login). Use this skill whenever working on deployment problems, checking why content, images or videos aren't showing on the live site, debugging a Turso connection or deciding which Turso database is actually the live one, debugging a Cloudinary upload or a "stream not found"/"interactive transaction was rolled back" Turso error, diagnosing a Shopify checkout or storefront-password issue, or any question about how this project's infra fits together — even if the user doesn't name a specific service, e.g. "why isn't this showing on vercel", "is turso connected", "shopify checkout isn't working", "which database do we use", "images are broken on the site", "video won't upload", "env vars aren't working".
 ---
 
 # Viraasat Griha infra playbook
@@ -13,13 +13,24 @@ Shopify — it will save you from re-discovering the same traps.
 
 - **App**: Next.js 16 (`viraasat-site/`), deployed on Vercel. Production
   domain: `https://viraasat-griha.vercel.app/`.
-- **Database**: Turso (libSQL), via `@libsql/client` (`lib/db.ts`). Holds
-  both editorial content (cities, crafts, media metadata — see
-  `viraasat-pipeline/schema.sql` for the schema) *and* the raw bytes of
-  every photo/video, in a `media_files` table (`path`, `content_type`,
-  `data BLOB`, `size`). There is no separate object store — `/media/...`
-  requests are served straight out of SQLite, using `substr()` for byte
-  ranges so video scrubbing works.
+- **Database**: Turso (libSQL), via `@libsql/client` (`lib/db.ts`) on the
+  site and a `libsql`-wrapped connection (`pipeline.connect()`) on the
+  admin tool. Holds editorial content (cities, crafts, story paragraphs)
+  and media metadata (see `viraasat-pipeline/schema.sql`) — but not the
+  photo/video bytes themselves (see Media storage below).
+- **Media storage**: Cloudinary. `media.local_path` / `media.poster_path`
+  hold an absolute `https://res.cloudinary.com/...` URL for anything
+  uploaded since the Cloudinary migration — the site's `fileUrl()`
+  (`lib/site.ts`) passes an absolute URL straight through, and the admin
+  tool's `push_media_file` (`sitedb.py`) uploads to Cloudinary via
+  `cloud.py` whenever `CLOUDINARY_*` env vars are set. A relative path
+  (no `http`) is the legacy form: a key into Turso's `media_files` blob
+  table, served at `/media/<path>` straight out of SQLite (`substr()` for
+  byte ranges so video scrubbing works). Without Cloudinary credentials
+  configured, `push_media_file` falls back to this legacy blob-storage
+  behavior (keeps the pipeline's own test suite offline). Why the move:
+  large video blobs pushed/pulled through Turso's Hrana protocol were slow
+  enough to expire the connection's stream mid-request — see Gotcha 5.
 - **Commerce**: Shopify Storefront API (products, cart, checkout) and
   Shopify Customer Account API (login), both entirely separate from
   Turso — `lib/shopify.ts` is the only file that talks to Shopify. Turso
@@ -56,7 +67,16 @@ was accurate as of the session that wrote it, and infra drifts.
   `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `VG_PREVIEW`,
   `SHOPIFY_STORE_DOMAIN`, `SHOPIFY_STOREFRONT_TOKEN`, and for customer
   login `SHOPIFY_SHOP_ID` / `SHOPIFY_CUSTOMER_ACCOUNT_CLIENT_ID` /
-  `SITE_URL`.
+  `SITE_URL`. The site itself needs no Cloudinary credentials — it only
+  ever reads the URL already stored in `media.local_path`.
+- **The admin tool's env vars live only in `viraasat-pipeline/.env`**
+  (gitignored, loaded by `pipeline._load_dotenv`): the same
+  `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` as above, plus
+  `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+  for uploads. Cloudinary's "Cloud name" is a short auto-generated string
+  (e.g. `dqnxa1vzt`) shown at the top of the Cloudinary console — it is
+  **not** the account/product display name, which looks plausible but
+  gets rejected by the API with `Invalid cloud_name`.
 - **`VG_PREVIEW=1` is probably intentional, not a bug.** It shows
   draft/unreviewed cities and unverified media, clearly labelled. If
   content looks "empty" on the live site with this unset, that's the
@@ -98,6 +118,25 @@ was accurate as of the session that wrote it, and infra drifts.
    not a bug in this app. If the "Password protection" toggle is
    greyed out, the store is probably still on a trial with no plan
    selected — a plan has to be chosen before the toggle is available.
+5. **Turso's Hrana connection can die mid-request on anything slow** —
+   a long `yt-dlp` download, or (before the Cloudinary migration) pushing
+   a large video blob. Symptoms: `api error: status=404 ... "stream not
+   found: ..."` on the next query after the slow step, or `SQLITE_BUSY
+   ... "interactive transaction was rolled back because the stream was
+   idle for too long"`. `pipeline._TursoConnection.execute` now
+   auto-reconnects and retries once on "stream not found", and
+   `sitedb.add_post` commits after each media item instead of one commit
+   at the end, but a request that still dies between `pipeline.save()`'s
+   own early commit (the reel row) and the later media-row insert leaves
+   a **reel assigned to a city with no media row** — it shows up in
+   `add_post`'s "already in X" duplicate check but never renders on the
+   city page. Find these with:
+   ```sql
+   SELECT r.* FROM reels r WHERE r.city_id IS NOT NULL AND r.video_path IS NOT NULL
+     AND NOT EXISTS (SELECT 1 FROM media m WHERE m.reel_id = r.id);
+   ```
+   `viraasat-pipeline/migrate_to_cloudinary.py` repairs exactly this case
+   (and is safe to re-run — it only touches rows it finds in this state).
 
 ## Quick diagnostics
 
@@ -106,6 +145,8 @@ was accurate as of the session that wrote it, and infra drifts.
 curl -s -o /dev/null -w "%{http_code}\n" https://viraasat-griha.vercel.app/
 
 # Does a given media file actually serve (and with the right type)?
+# If media.local_path starts with http(s), curl it directly (it's a Cloudinary URL).
+# Otherwise it's a legacy relative path served out of Turso's media_files blob table:
 curl -sI https://viraasat-griha.vercel.app/media/<path-from-media.local_path>
 
 # Is Shopify wired in, or still showing placeholders?
