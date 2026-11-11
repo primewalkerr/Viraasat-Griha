@@ -1,6 +1,6 @@
 ---
 name: viraasat-infra
-description: Operational reference for how Viraasat Griha's infrastructure is wired together — Vercel (hosting), Turso (the production database, holding editorial content and media metadata), Cloudinary (hosts the actual photo/video files), and Shopify (storefront, cart, checkout, customer login). Use this skill whenever working on deployment problems, checking why content, images or videos aren't showing on the live site, debugging a Turso connection or deciding which Turso database is actually the live one, debugging a Cloudinary upload or a "stream not found"/"interactive transaction was rolled back" Turso error, diagnosing a Shopify checkout or storefront-password issue, or any question about how this project's infra fits together — even if the user doesn't name a specific service, e.g. "why isn't this showing on vercel", "is turso connected", "shopify checkout isn't working", "which database do we use", "images are broken on the site", "video won't upload", "env vars aren't working".
+description: Operational reference for how Viraasat Griha's infrastructure is wired together — Vercel (hosting), Turso (the production database, holding editorial content and media metadata), Cloudinary (hosts the actual photo/video files), and Shopify (storefront, cart, checkout, customer login). Use this skill whenever working on deployment problems, checking why content, images or videos aren't showing on the live site, debugging a Turso connection or deciding which Turso database is actually the live one, debugging a Cloudinary upload or a "stream not found"/"interactive transaction was rolled back" Turso error, diagnosing a Shopify checkout or storefront-password issue, generating a Shopify Admin API token to write product data (the Storefront token can't), or any question about how this project's infra fits together — even if the user doesn't name a specific service, e.g. "why isn't this showing on vercel", "is turso connected", "shopify checkout isn't working", "which database do we use", "images are broken on the site", "video won't upload", "upload a product image to shopify", "env vars aren't working".
 ---
 
 # Viraasat Griha infra playbook
@@ -83,6 +83,50 @@ was accurate as of the session that wrote it, and infra drifts.
   live-mode filter correctly hiding unpublished content — not a
   connection failure. Check `cities.status` / `media.permission` in the
   database before assuming something is broken.
+- **`SHOPIFY_STOREFRONT_TOKEN` is read-only** (products, cart, checkout
+  URLs) — it cannot write anything, including a product's image. For
+  that you need a separate **Admin API access token**, which this
+  project does not keep configured anywhere (not in `.env.local`, not in
+  Vercel). Generate one when needed:
+  1. Shopify admin → Settings → Apps and sales channels → **Develop
+     apps** → Create an app (or reuse an existing one) → **Configure
+     Admin API scopes** → enable what you need (e.g. `write_products`)
+     → **Install app**.
+  2. Its **API credentials** tab shows a `client_id` and `client_secret`
+     (*not* the Admin API access token itself — don't confuse the two).
+     Exchange them for a short-lived token with:
+     ```bash
+     curl -X POST "https://viraasatggriha.myshopify.com/admin/oauth/access_token" \
+       -H "Content-Type: application/x-www-form-urlencoded" \
+       --data-urlencode "grant_type=client_credentials" \
+       --data-urlencode "client_id=<client_id>" \
+       --data-urlencode "client_secret=<client_secret>"
+     ```
+     Returns `{"access_token":"shpat_...","scope":"...","expires_in":86399}`
+     (~24h; just re-run the exchange when it expires — the client_id/
+     secret themselves don't expire).
+  3. Use the token as the `X-Shopify-Access-Token` header against
+     `https://viraasatggriha.myshopify.com/admin/api/2025-01/graphql.json`.
+     To attach an image to a product from a URL (no need to download/
+     re-upload bytes yourself), look the product up by handle, then:
+     ```graphql
+     mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
+       productCreateMedia(productId: $productId, media: $media) {
+         media { ... on MediaImage { id image { url } } }
+         mediaUserErrors { field message }
+       }
+     }
+     ```
+     with `media: [{ originalSource: "<image url>", mediaContentType: IMAGE }]`.
+     Shopify fetches and re-hosts it on `cdn.shopify.com` asynchronously —
+     poll `node(id: "<the returned MediaImage id>") { ... on MediaImage {
+     status image { url } } }` until `status` is `READY` before expecting
+     it to show up via the Storefront API.
+  Treat every value here (client_id, client_secret, the exchanged
+  `shpat_...` token) as a secret: never commit them, and if one is ever
+  pasted into a chat transcript, rotate it (regenerate the client_secret
+  on the app's API credentials page) rather than trust it's still safe
+  to use.
 
 ## Gotchas (each of these cost real time — don't repeat them)
 
