@@ -6,7 +6,7 @@ import { addToBag } from "@/app/bag/actions";
 import { dummyVariants } from "@/lib/content";
 import type { CraftTab, Media } from "@/lib/site";
 import { SoundOffIcon, SoundOnIcon } from "./Icons";
-import Photo, { Credit, PermissionTag } from "./Photo";
+import Photo from "./Photo";
 
 function Film({ m }: { m: Media }) {
   const [muted, setMuted] = useState(true);
@@ -71,8 +71,7 @@ export default function CraftTabs({ cityName, crafts, preview }: {
             <>
               <span className="kicker" style={{ fontSize: 12, letterSpacing: 3, textTransform: "uppercase", color: "var(--madder)", fontWeight: 600 }}>Watch it being made</span>
               <Film m={cur.film} />
-              {cur.film.alt && <span className="title">{cur.film.alt}</span>}
-              <span className="meta"><Credit media={cur.film} /> <PermissionTag media={cur.film} /></span>
+              {cur.film.alt && <span className="meta">{cur.film.alt}</span>}
             </>
           ) : (
             <div className="photo-missing" style={{ minHeight: 360 }}>A film of the making will be added</div>
@@ -140,6 +139,7 @@ export default function CraftTabs({ cityName, crafts, preview }: {
             {cur.videos.map((v) => (
               <figure key={v.id} className="vid" style={{ margin: 0 }}>
                 <Film m={v} />
+                {v.alt && <figcaption className="meta">{v.alt}</figcaption>}
               </figure>
             ))}
           </div>
