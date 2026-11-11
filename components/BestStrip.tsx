@@ -42,8 +42,12 @@ export default function BestStrip({ items }: { items: Item[] }) {
 
   useEffect(() => {
     if (!animate) return;
+    // setInterval's first tick only fires after the full delay, which made the
+    // strip sit still for TICK_MS before ever moving; fire the first step
+    // quickly instead, then settle into the normal cadence.
+    const first = setTimeout(() => { if (!paused.current) step(1); }, 500);
     tickTimer.current = setInterval(() => { if (!paused.current) step(1); }, TICK_MS);
-    return () => { clearInterval(tickTimer.current); clearTimeout(snapTimer.current); };
+    return () => { clearTimeout(first); clearInterval(tickTimer.current); clearTimeout(snapTimer.current); };
   }, [animate, step]);
 
   // A manual click restarts the auto-advance timer so it doesn't fire right behind the click.
