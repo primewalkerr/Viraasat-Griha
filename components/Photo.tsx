@@ -8,12 +8,6 @@ export default function Photo({ media, alt, className, label = "Photo to come" }
   return <img src={media.src} alt={media.alt || alt} className={className} loading="lazy" decoding="async" />;
 }
 
-/** Preview-only label for media whose permission is not yet granted. */
-export function PermissionTag({ media }: { media: Media | null }) {
-  if (!media || media.cleared) return null;
-  return <span className="tag tag-warn">Permission: {media.permission.replace("_", " ")}</span>;
-}
-
 export function Credit({ media }: { media: Media }) {
   if (!media.creditName) return null;
   return (

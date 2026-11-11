@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Media } from "@/lib/site";
-import { PermissionTag } from "./Photo";
 
 export default function CityHero({ slides, eyebrow, name, nameHi, tagline }: {
   slides: Media[]; eyebrow: string; name: string; nameHi: string | null; tagline: string | null;
@@ -33,8 +32,8 @@ export default function CityHero({ slides, eyebrow, name, nameHi, tagline }: {
         {tagline && <p className="hero-tag">{tagline}</p>}
         <a href="#story" className="btn btn-light">Read the story</a>
       </div>
-      {cur && (cur.creditName || !cur.cleared) && (
-        <span className="credit-chip">{cur.creditName ? `Photo: ${cur.creditName} ` : ""}<PermissionTag media={cur} /></span>
+      {cur && cur.creditName && (
+        <span className="credit-chip">{`Photo: ${cur.creditName}`}</span>
       )}
       {n > 1 && (
         <div className="slide-ctl">
