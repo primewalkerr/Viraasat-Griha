@@ -85,13 +85,10 @@ type MediaRow = {
   permission: Permission; city_id: number | null; craft_id: number | null;
 };
 
-/** media.local_path is a path relative to the media store (a Blob CDN in
- *  production, the local /media route in dev); local_path-based files are
- *  known to be a directly playable file, unlike a bare `url` link-out. */
-const fileUrl = (p: string) => {
-  const rel = p.split("/").map(encodeURIComponent).join("/");
-  return config.mediaBaseUrl ? config.mediaBaseUrl.replace(/\/$/, "") + "/" + rel : "/media/" + rel;
-};
+/** media.local_path is a path into the media_files table (served by the
+ *  /media route); local_path-based files are known to be a directly playable
+ *  file, unlike a bare `url` link-out. */
+const fileUrl = (p: string) => "/media/" + p.split("/").map(encodeURIComponent).join("/");
 
 function toMedia(r: MediaRow | undefined): Media | null {
   if (!r || !mayShow(r.permission)) return null;
@@ -118,6 +115,25 @@ export async function mediaFileAllowed(relPath: string): Promise<boolean> {
   const rows = await all<{ permission: string }>(
     "SELECT permission FROM media WHERE local_path = ? OR poster_path = ?", [relPath, relPath]);
   return rows.some((r) => mayShow(r.permission));
+}
+
+export type MediaFileMeta = { contentType: string; size: number };
+
+/** A file's content type and byte size, from the media_files blob table. */
+export async function getMediaFileMeta(relPath: string): Promise<MediaFileMeta | null> {
+  const row = await get<{ content_type: string; size: number }>(
+    "SELECT content_type, size FROM media_files WHERE path = ?", [relPath]);
+  return row ? { contentType: row.content_type, size: row.size } : null;
+}
+
+/** The file's bytes, or a byte range of them (both ends inclusive) for scrubbing. */
+export async function getMediaFileBytes(relPath: string, range?: { start: number; end: number }): Promise<Uint8Array | null> {
+  const row = range
+    ? await get<{ data: ArrayBuffer }>(
+        "SELECT substr(data, ?, ?) AS data FROM media_files WHERE path = ?",
+        [range.start + 1, range.end - range.start + 1, relPath])
+    : await get<{ data: ArrayBuffer }>("SELECT data FROM media_files WHERE path = ?", [relPath]);
+  return row ? new Uint8Array(row.data) : null;
 }
 
 /* ----------------------------------------------------------------- cities */

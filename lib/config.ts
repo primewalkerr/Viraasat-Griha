@@ -1,14 +1,9 @@
-import path from "node:path";
-
-/** Settings from .env.local (see .env.example). Paths resolve from the project folder. */
+/** Settings from .env.local (see .env.example). */
 export const config = {
-  /** Turso (libSQL) connection: the same database the admin's tools write to. */
+  /** Turso (libSQL) connection: the same database the admin's tools write to.
+   *  Media files (photos/videos) also live there, in the media_files table. */
   tursoUrl: process.env.TURSO_DATABASE_URL || "",
   tursoAuthToken: process.env.TURSO_AUTH_TOKEN || "",
-  mediaDir: path.resolve(process.cwd(), process.env.VG_MEDIA_DIR || "../viraasat-pipeline/media"),
-  /** Public base URL media files are served from (e.g. a Vercel Blob store). Falls
-   *  back to this app's own /media route, which reads VG_MEDIA_DIR from local disk. */
-  mediaBaseUrl: process.env.MEDIA_BASE_URL || null,
   /** Preview shows drafts, unchecked text and media without permission, all labelled. */
   preview: process.env.VG_PREVIEW === "1",
   shopifyDomain: process.env.SHOPIFY_STORE_DOMAIN,

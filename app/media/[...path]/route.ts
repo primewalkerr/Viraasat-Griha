@@ -1,32 +1,22 @@
-import fs from "node:fs";
-import path from "node:path";
-import { Readable } from "node:stream";
 import { config } from "@/lib/config";
-import { mediaFileAllowed } from "@/lib/site";
+import { mediaFileAllowed, getMediaFileMeta, getMediaFileBytes } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-const TYPES: Record<string, string> = {
-  ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".gif": "image/gif",
-  ".avif": "image/avif", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
-};
-
 /**
- * Serves files from the admin's media folder. Only files recorded in the media
- * table, and allowed by their permission (or preview mode), are served.
+ * Serves files from the media_files blob table in Turso. Only files recorded
+ * in the media table, and allowed by their permission (or preview mode), are
+ * served.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
   const rel = (await params).path.join("/");
-  const type = TYPES[path.extname(rel).toLowerCase()];
-  const full = path.resolve(config.mediaDir, rel);
-  if (!type || !full.startsWith(config.mediaDir + path.sep) || !(await mediaFileAllowed(rel))) {
-    return new Response("Not found", { status: 404 });
-  }
-  let size: number;
-  try { size = fs.statSync(full).size; } catch { return new Response("Not found", { status: 404 }); }
+  if (!(await mediaFileAllowed(rel))) return new Response("Not found", { status: 404 });
+
+  const meta = await getMediaFileMeta(rel);
+  if (!meta) return new Response("Not found", { status: 404 });
 
   const headers: Record<string, string> = {
-    "Content-Type": type,
+    "Content-Type": meta.contentType,
     "Accept-Ranges": "bytes",
     "Cache-Control": config.preview ? "no-store" : "public, max-age=86400",
     "X-Content-Type-Options": "nosniff",
@@ -35,16 +25,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
   // Byte ranges let browsers scrub through videos.
   const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get("range") ?? "");
   if (m && (m[1] || m[2])) {
-    let start = m[1] ? Number(m[1]) : size - Number(m[2]);
-    let end = m[1] && m[2] ? Number(m[2]) : size - 1;
-    start = Math.max(0, start); end = Math.min(end, size - 1);
-    if (start > end) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
-    const body = Readable.toWeb(fs.createReadStream(full, { start, end })) as ReadableStream;
-    return new Response(body, {
+    let start = m[1] ? Number(m[1]) : meta.size - Number(m[2]);
+    let end = m[1] && m[2] ? Number(m[2]) : meta.size - 1;
+    start = Math.max(0, start); end = Math.min(end, meta.size - 1);
+    if (start > end) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${meta.size}` } });
+    const bytes = await getMediaFileBytes(rel, { start, end });
+    if (!bytes) return new Response("Not found", { status: 404 });
+    return new Response(bytes as BodyInit, {
       status: 206,
-      headers: { ...headers, "Content-Range": `bytes ${start}-${end}/${size}`, "Content-Length": String(end - start + 1) },
+      headers: { ...headers, "Content-Range": `bytes ${start}-${end}/${meta.size}`, "Content-Length": String(end - start + 1) },
     });
   }
-  const body = Readable.toWeb(fs.createReadStream(full)) as ReadableStream;
-  return new Response(body, { headers: { ...headers, "Content-Length": String(size) } });
+  const bytes = await getMediaFileBytes(rel);
+  if (!bytes) return new Response("Not found", { status: 404 });
+  return new Response(bytes as BodyInit, { headers: { ...headers, "Content-Length": String(meta.size) } });
 }
