@@ -67,7 +67,9 @@ a:hover { color: var(--madder); }
 .photo-missing { display: flex; align-items: center; justify-content: center; background: var(--ivory-band); color: var(--muted); font-family: var(--display); font-size: 22px; font-style: italic; }
 
 /* ---------------------------------------------------------------- header */
-.site-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 24px var(--gutter); background: var(--ivory-card); border-bottom: 1px solid var(--line); }
+/* .page caps out at 1440px and centers, so on wider screens the header/footer
+   bands need to break out of it to actually reach the browser edges. */
+.site-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 24px var(--gutter); background: var(--ivory-card); border-bottom: 1px solid var(--line); width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); box-sizing: border-box; }
 .logo { text-decoration: none; display: flex; align-items: center; gap: 10px; }
 .logo-mark { width: 40px; height: 40px; flex-shrink: 0; }
 .logo-text { display: flex; flex-direction: column; gap: 2px; }
@@ -88,7 +90,7 @@ a:hover { color: var(--madder); }
 .preview-bar { background: var(--madder); color: var(--ivory); font-size: 14px; padding: 8px var(--gutter); text-align: center; }
 
 /* ---------------------------------------------------------------- footer */
-.site-footer { padding: 72px var(--gutter) 32px; background: var(--ivory-card); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 56px; }
+.site-footer { padding: 72px var(--gutter) 32px; background: var(--ivory-card); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 56px; width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); box-sizing: border-box; }
 .footer-cols { display: flex; flex-wrap: wrap; gap: 48px 64px; }
 .footer-brand { flex: 2 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .footer-col { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
