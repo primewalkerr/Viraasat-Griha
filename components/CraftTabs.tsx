@@ -72,22 +72,6 @@ export default function CraftTabs({ cityName, crafts, preview }: {
         </div>
       </section>
 
-      {cur.videos.length > 0 && (
-        <section className="band" aria-labelledby="more-films">
-          <h2 id="more-films" className="display h2s">More from the workshops</h2>
-          <div className="videos">
-            {cur.videos.map((v) => (
-              <figure key={v.id} className="vid" style={{ margin: 0 }}>
-                <Film m={v} />
-                <figcaption className="meta">
-                  {v.alt && <>{v.alt}<br /></>}<Credit media={v} /> <PermissionTag media={v} />
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
-      )}
-
       <section id="shop" className="band" aria-labelledby="shop-h">
         <div className="shop-head">
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -140,6 +124,22 @@ export default function CraftTabs({ cityName, crafts, preview }: {
           </div>
         )}
       </section>
+
+      {cur.videos.length > 0 && (
+        <section className="band" aria-labelledby="more-films">
+          <h2 id="more-films" className="display h2s">More from the workshops</h2>
+          <div className="videos">
+            {cur.videos.map((v) => (
+              <figure key={v.id} className="vid" style={{ margin: 0 }}>
+                <Film m={v} />
+                <figcaption className="meta">
+                  {v.alt && <>{v.alt}<br /></>}<Credit media={v} /> <PermissionTag media={v} />
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
     </>
   );
 }
