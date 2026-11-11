@@ -8,9 +8,11 @@ export default function Footer() {
         <div className="footer-brand">
           <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <img src="/logo.svg" alt="" width={44} height={44} />
-            <span className="logo-en" style={{ fontSize: 34 }}>{brand.name}</span>
+            <span className="logo-text">
+              <span className="logo-en" style={{ fontSize: 34 }}>{brand.name}</span>
+              <span className="hindi" lang="hi" style={{ fontSize: 15, color: "var(--muted)" }}>{brand.nameHi}</span>
+            </span>
           </span>
-          <span className="hindi" lang="hi" style={{ fontSize: 15, color: "var(--muted)" }}>{brand.nameHi}</span>
           <p className="lede" style={{ fontSize: 16, maxWidth: 380 }}>{brand.footerBlurb}</p>
         </div>
         <nav className="footer-col" aria-labelledby="f-explore">
