@@ -12,14 +12,14 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const a = getProduct((await params).slug);
+  const a = await getProduct((await params).slug);
   if (!a) return { title: "Product not found" };
   return { title: `${a.craft}, ${a.city}`, description: `${a.craft} from ${a.city}, ${a.state}.` };
 }
 
 /** Real price and photo come from Shopify once a product's handle matches this slug; a dummy placeholder otherwise. */
 export default async function ProductPage({ params }: Props) {
-  const a = getProduct((await params).slug);
+  const a = await getProduct((await params).slug);
   if (!a) notFound();
   const shopify = await getShopifyProduct(a.productSlug);
 

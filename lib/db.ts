@@ -1,30 +1,33 @@
 import "server-only";
-import Database from "better-sqlite3";
+import { createClient, type Client, type InArgs } from "@libsql/client";
 import { config } from "./config";
 
-type DB = Database.Database;
+const g = globalThis as unknown as { __vgDb?: Client };
 
-const g = globalThis as unknown as { __vgRead?: DB; __vgWrite?: DB };
-
-/** Read-only connection to the admin's viraasat.db (kept across hot reloads). */
-export function readDb(): DB {
-  if (!g.__vgRead) {
-    g.__vgRead = new Database(config.dbPath, { readonly: true, fileMustExist: true });
-    g.__vgRead.pragma("busy_timeout = 3000");
+/** The Turso (libSQL) connection, shared across requests. */
+export function getDb(): Client {
+  if (!g.__vgDb) {
+    g.__vgDb = createClient({ url: config.tursoUrl, authToken: config.tursoAuthToken });
   }
-  return g.__vgRead;
+  return g.__vgDb;
 }
 
-/** Read-write connection, used only for the contact form. */
-export function writeDb(): DB {
-  if (!g.__vgWrite) {
-    g.__vgWrite = new Database(config.dbPath, { fileMustExist: true });
-    g.__vgWrite.pragma("busy_timeout = 3000");
-    g.__vgWrite.pragma("foreign_keys = ON");
-  }
-  return g.__vgWrite;
+/** All rows from a query, typed as T. */
+export async function all<T>(sql: string, args: InArgs = []): Promise<T[]> {
+  const r = await getDb().execute({ sql, args });
+  return r.rows as unknown as T[];
 }
 
-export function tableExists(db: DB, name: string): boolean {
-  return !!db.prepare("SELECT 1 FROM sqlite_master WHERE type IN ('table','view') AND name = ?").get(name);
+/** The first row of a query, or undefined. */
+export async function get<T>(sql: string, args: InArgs = []): Promise<T | undefined> {
+  return (await all<T>(sql, args))[0];
+}
+
+/** An INSERT/UPDATE statement. */
+export async function run(sql: string, args: InArgs = []): Promise<void> {
+  await getDb().execute({ sql, args });
+}
+
+export async function tableExists(name: string): Promise<boolean> {
+  return !!(await get("SELECT 1 FROM sqlite_master WHERE type IN ('table','view') AND name = ?", [name]));
 }

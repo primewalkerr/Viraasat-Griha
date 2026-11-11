@@ -1,5 +1,5 @@
 import "server-only";
-import { readDb, writeDb, tableExists } from "./db";
+import { all, get, run, tableExists } from "./db";
 import { config } from "./config";
 import { stateHindi } from "./content";
 
@@ -10,7 +10,7 @@ export type Permission = "not_asked" | "requested" | "granted" | "refused" | "ow
 export type Media = {
   id: number;
   kind: "photo" | "video";
-  src: string;            // URL the browser loads (local file via /media, or remote)
+  src: string;            // URL the browser loads (media CDN, local /media route, or remote)
   poster: string | null;
   alt: string;
   creditName: string | null;
@@ -85,7 +85,13 @@ type MediaRow = {
   permission: Permission; city_id: number | null; craft_id: number | null;
 };
 
-const fileUrl = (p: string) => "/media/" + p.split("/").map(encodeURIComponent).join("/");
+/** media.local_path is a path relative to the media store (a Blob CDN in
+ *  production, the local /media route in dev); local_path-based files are
+ *  known to be a directly playable file, unlike a bare `url` link-out. */
+const fileUrl = (p: string) => {
+  const rel = p.split("/").map(encodeURIComponent).join("/");
+  return config.mediaBaseUrl ? config.mediaBaseUrl.replace(/\/$/, "") + "/" + rel : "/media/" + rel;
+};
 
 function toMedia(r: MediaRow | undefined): Media | null {
   if (!r || !mayShow(r.permission)) return null;
@@ -103,15 +109,14 @@ function toMedia(r: MediaRow | undefined): Media | null {
   };
 }
 
-function allMedia(): MediaRow[] {
-  return readDb().prepare("SELECT * FROM media ORDER BY id").all() as MediaRow[];
+function allMedia(): Promise<MediaRow[]> {
+  return all<MediaRow>("SELECT * FROM media ORDER BY id");
 }
 
 /** Media the site may serve at /media/<path> (blocks files without permission). */
-export function mediaFileAllowed(relPath: string): boolean {
-  const rows = readDb()
-    .prepare("SELECT permission FROM media WHERE local_path = ? OR poster_path = ?")
-    .all(relPath, relPath) as { permission: string }[];
+export async function mediaFileAllowed(relPath: string): Promise<boolean> {
+  const rows = await all<{ permission: string }>(
+    "SELECT permission FROM media WHERE local_path = ? OR poster_path = ?", [relPath, relPath]);
   return rows.some((r) => mayShow(r.permission));
 }
 
@@ -169,16 +174,16 @@ function solve3(A: number[][], B: number[]): number[] | null {
   return [M[0][3] / M[0][0], M[1][3] / M[1][1], M[2][3] / M[2][2]];
 }
 
-function cityRows(): CityRow[] {
+function cityRows(): Promise<CityRow[]> {
   const st = visibleStatuses();
-  return readDb().prepare(`
+  return all<CityRow>(`
     SELECT c.*, cr.name AS craft, cr.keywords AS craft_keywords, cat.name AS category
     FROM cities c
     LEFT JOIN city_crafts cc ON cc.city_id = c.id AND cc.is_featured = 1
     LEFT JOIN crafts cr      ON cr.id = cc.craft_id AND cr.status <> 'hidden'
     LEFT JOIN categories cat ON cat.id = cr.category_id
     WHERE c.status IN (${inList(st.length)})
-    ORDER BY c.pin_number IS NULL, c.pin_number, c.name`).all(...st) as CityRow[];
+    ORDER BY c.pin_number IS NULL, c.pin_number, c.name`, st);
 }
 
 function cardFor(r: CityRow, pin: number, pos: { x: number; y: number } | undefined, media: MediaRow[], byId: Map<number, MediaRow>, extra = ""): CityCard {
@@ -196,29 +201,30 @@ function cardFor(r: CityRow, pin: number, pos: { x: number; y: number } | undefi
 }
 
 /** Every city the visitor may see, in map order. */
-export function listCities(): CityCard[] {
-  const rows = cityRows();
-  const media = allMedia();
+export async function listCities(): Promise<CityCard[]> {
+  const [rows, media, extraCrafts] = await Promise.all([cityRows(), allMedia(), craftNamesByCity()]);
   const byId = new Map(media.map((m) => [m.id, m]));
   const pos = fillMapPositions(rows);
-  const extraCrafts = craftNamesByCity();
   return rows.map((r, i) => cardFor(r, i + 1, pos.get(r.id), media, byId, extraCrafts.get(r.id) ?? ""));
 }
 
-function craftNamesByCity(): Map<number, string> {
-  const rows = readDb().prepare(`
+async function craftNamesByCity(): Promise<Map<number, string>> {
+  const rows = await all<{ city_id: number; names: string }>(`
     SELECT cc.city_id, group_concat(cr.name || ' ' || IFNULL(cr.keywords, ''), ' ') AS names
     FROM city_crafts cc JOIN crafts cr ON cr.id = cc.craft_id
-    WHERE cr.status <> 'hidden' GROUP BY cc.city_id`).all() as { city_id: number; names: string }[];
+    WHERE cr.status <> 'hidden' GROUP BY cc.city_id`);
   return new Map(rows.map((r) => [r.city_id, r.names]));
 }
 
 /** One card per craft of each visible city, for All art. */
-export function listArt() {
-  const cities = new Map(listCities().map((c) => [c.slug, c]));
-  const media = allMedia();
+export async function listArt() {
+  const cities = new Map((await listCities()).map((c) => [c.slug, c]));
+  const media = await allMedia();
   const st = visibleStatuses();
-  const rows = readDb().prepare(`
+  const rows = await all<{
+    city_id: number; city_slug: string; craft_id: number; slug: string; name: string; category: string;
+    is_featured: number; shop_live: number;
+  }>(`
     SELECT c.id AS city_id, c.slug AS city_slug, cr.id AS craft_id, cr.slug, cr.name, cat.name AS category,
            cc.is_featured, cr.making_media_id,
            EXISTS (SELECT 1 FROM shop_collections sc WHERE sc.craft_id = cr.id AND sc.is_live = 1) AS shop_live
@@ -227,10 +233,7 @@ export function listArt() {
     JOIN crafts cr ON cr.id = cc.craft_id AND cr.status <> 'hidden'
     JOIN categories cat ON cat.id = cr.category_id
     WHERE c.status IN (${inList(st.length)})
-    ORDER BY c.pin_number IS NULL, c.pin_number, cc.is_featured DESC, cc.sort_order, cr.name`).all(...st) as {
-      city_id: number; city_slug: string; craft_id: number; slug: string; name: string; category: string;
-      is_featured: number; shop_live: number;
-    }[];
+    ORDER BY c.pin_number IS NULL, c.pin_number, cc.is_featured DESC, cc.sort_order, cr.name`, st);
   return rows.map((r, i) => {
     const city = cities.get(r.city_slug)!;
     const craftPhoto = media.filter((m) => m.kind === "photo" && m.craft_id === r.craft_id && m.city_id === r.city_id)
@@ -244,24 +247,23 @@ export function listArt() {
   });
 }
 
-export type ArtCard = ReturnType<typeof listArt>[number];
+export type ArtCard = Awaited<ReturnType<typeof listArt>>[number];
 
 /** One craft of one city, by the slug listArt() gives it. For the (placeholder) product page. */
-export function getProduct(productSlug: string): ArtCard | null {
-  return listArt().find((a) => a.productSlug === productSlug) ?? null;
+export async function getProduct(productSlug: string): Promise<ArtCard | null> {
+  return (await listArt()).find((a) => a.productSlug === productSlug) ?? null;
 }
 
 /* -------------------------------------------------------------- city page */
 
-export function getCityPage(slug: string): CityPage | null {
-  const db = readDb();
-  const all = cityRows();
-  const row = all.find((r) => r.slug === slug);
+export async function getCityPage(slug: string): Promise<CityPage | null> {
+  const all_ = await cityRows();
+  const row = all_.find((r) => r.slug === slug);
   if (!row) return null;
-  const media = allMedia();
+  const media = await allMedia();
   const byId = new Map(media.map((m) => [m.id, m]));
-  const pos = fillMapPositions(all);
-  const card = cardFor(row, all.indexOf(row) + 1, pos.get(row.id), media, byId);
+  const pos = fillMapPositions(all_);
+  const card = cardFor(row, all_.indexOf(row) + 1, pos.get(row.id), media, byId);
 
   // Slider: hero first, then the city's other photos.
   const photos = media.filter((m) => m.city_id === row.id && m.kind === "photo");
@@ -271,31 +273,31 @@ export function getCityPage(slug: string): CityPage | null {
   const slides = slideRows.filter((m) => !seen.has(m.id) && seen.add(m.id)).map(toMedia).filter((m): m is Media => !!m).slice(0, 8);
   if (!slides.length && card.photo) slides.push(card.photo);
 
-  const craftRows = db.prepare(`
+  const craftRows = await all<{
+    id: number; slug: string; name: string; category: string; making_media_id: number | null;
+    gi_tag: number; gi_year: number | null;
+  }>(`
     SELECT cr.*, cat.name AS category, cc.is_featured
     FROM city_crafts cc JOIN crafts cr ON cr.id = cc.craft_id JOIN categories cat ON cat.id = cr.category_id
     WHERE cc.city_id = ? AND cr.status <> 'hidden'
-    ORDER BY cc.is_featured DESC, cc.sort_order, cr.name`).all(row.id) as {
-      id: number; slug: string; name: string; category: string; making_media_id: number | null;
-      gi_tag: number; gi_year: number | null;
-    }[];
-
-  const paraStmt = db.prepare(`
-    SELECT id, body, fact_status FROM craft_story_paragraphs
-    WHERE craft_id = ? AND (city_id IS NULL OR city_id = ?) ORDER BY position, id`);
-  const srcStmt = db.prepare(`
-    SELECT s.title, s.publisher, s.url FROM paragraph_sources ps JOIN sources s ON s.id = ps.source_id
-    WHERE ps.paragraph_id = ? ORDER BY s.id`);
+    ORDER BY cc.is_featured DESC, cc.sort_order, cr.name`, [row.id]);
 
   const cityVideos = media.filter((m) => m.city_id === row.id && m.kind === "video");
-  const crafts: CraftTab[] = craftRows.map((cr) => {
-    const paragraphs = (paraStmt.all(cr.id, row.id) as { id: number; body: string; fact_status: string }[])
-      .filter((p) => p.fact_status === "checked" || (config.preview && p.fact_status !== "disputed"))
-      .map((p) => ({
-        body: p.body, checked: p.fact_status === "checked",
-        sources: (srcStmt.all(p.id) as { title: string; publisher: string | null; url: string | null }[])
-          .map((s) => ({ title: s.publisher ? `${s.title}, ${s.publisher}` : s.title, url: s.url })),
-      }));
+  const crafts: CraftTab[] = await Promise.all(craftRows.map(async (cr) => {
+    const paraRows = await all<{ id: number; body: string; fact_status: string }>(`
+      SELECT id, body, fact_status FROM craft_story_paragraphs
+      WHERE craft_id = ? AND (city_id IS NULL OR city_id = ?) ORDER BY position, id`, [cr.id, row.id]);
+    const paragraphs = await Promise.all(
+      paraRows
+        .filter((p) => p.fact_status === "checked" || (config.preview && p.fact_status !== "disputed"))
+        .map(async (p) => ({
+          body: p.body, checked: p.fact_status === "checked",
+          sources: (await all<{ title: string; publisher: string | null; url: string | null }>(`
+            SELECT s.title, s.publisher, s.url FROM paragraph_sources ps JOIN sources s ON s.id = ps.source_id
+            WHERE ps.paragraph_id = ? ORDER BY s.id`, [p.id]))
+            .map((s) => ({ title: s.publisher ? `${s.title}, ${s.publisher}` : s.title, url: s.url })),
+        })),
+    );
     const own = cityVideos.filter((m) => m.craft_id === cr.id || (m.craft_id == null && craftRows.length === 1));
     const videos = own.map(toMedia).filter((m): m is Media => !!m);
     // Cleared videos first, so the film slot shows a publishable one when there is one.
@@ -307,19 +309,20 @@ export function getCityPage(slug: string): CityPage | null {
       slug: cr.slug, name: cr.name, category: cr.category, thumb, paragraphs, film,
       videos: videos.filter((v) => v.id !== film?.id), giTag: !!cr.gi_tag, giYear: cr.gi_year,
     };
-  });
+  }));
 
-  const stores = (db.prepare(`
+  const storeRows = await all<{
+    name: string; address: string | null; rating: number | null; rating_count: number | null;
+    rating_checked_at: string | null; maps_url: string | null; google_place_id: string | null;
+    website: string | null; verified: number;
+  }>(`
     SELECT * FROM stores WHERE city_id = ? ${config.preview ? "" : "AND verified = 1"}
-    ORDER BY verified DESC, sort_order, id LIMIT 5`).all(row.id) as {
-      name: string; address: string | null; rating: number | null; rating_count: number | null;
-      rating_checked_at: string | null; maps_url: string | null; google_place_id: string | null;
-      website: string | null; verified: number;
-    }[]).map((s) => ({
-      name: s.name, address: s.address, rating: s.rating, ratingCount: s.rating_count,
-      ratingCheckedAt: s.rating_checked_at, verified: !!s.verified,
-      link: s.maps_url || (s.google_place_id ? `https://www.google.com/maps/place/?q=place_id:${s.google_place_id}` : s.website),
-    }));
+    ORDER BY verified DESC, sort_order, id LIMIT 5`, [row.id]);
+  const stores = storeRows.map((s) => ({
+    name: s.name, address: s.address, rating: s.rating, ratingCount: s.rating_count,
+    ratingCheckedAt: s.rating_checked_at, verified: !!s.verified,
+    link: s.maps_url || (s.google_place_id ? `https://www.google.com/maps/place/?q=place_id:${s.google_place_id}` : s.website),
+  }));
 
   return { city: { ...card, tagline: row.tagline, district: row.district }, slides, crafts, stores };
 }
@@ -327,16 +330,15 @@ export function getCityPage(slug: string): CityPage | null {
 /* ------------------------------------------------------------------- home */
 
 /** The home page background film: the first video the site may show. */
-export function heroVideo(): Media | null {
-  const rows = allMedia().filter((m) => m.kind === "video" && m.local_path);
+export async function heroVideo(): Promise<Media | null> {
+  const rows = (await allMedia()).filter((m) => m.kind === "video" && m.local_path);
   rows.sort((a, b) => Number(isCleared(b.permission)) - Number(isCleared(a.permission)));
   return rows.map(toMedia).find(Boolean) ?? null;
 }
 
-export function popularSearchTerms(fallback: string[]): string[] {
-  const db = readDb();
-  if (!tableExists(db, "popular_searches")) return fallback;
-  const rows = db.prepare("SELECT term FROM popular_searches ORDER BY position").all() as { term: string }[];
+export async function popularSearchTerms(fallback: string[]): Promise<string[]> {
+  if (!(await tableExists("popular_searches"))) return fallback;
+  const rows = await all<{ term: string }>("SELECT term FROM popular_searches ORDER BY position");
   return rows.length ? rows.map((r) => r.term) : fallback;
 }
 
@@ -355,9 +357,8 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   created_at          TEXT NOT NULL DEFAULT (datetime('now'))
 )`;
 
-export function saveContactMessage(m: { name: string; email: string; orderName: string | null; topic: string; message: string }) {
-  const db = writeDb();
-  db.exec(CONTACT_TABLE); // same definition as viraasat_schema.sql
-  db.prepare("INSERT INTO contact_messages (name, email, order_name, topic, message) VALUES (?, ?, ?, ?, ?)")
-    .run(m.name, m.email, m.orderName, m.topic, m.message);
+export async function saveContactMessage(m: { name: string; email: string; orderName: string | null; topic: string; message: string }) {
+  await run(CONTACT_TABLE); // same definition as viraasat_schema.sql
+  await run("INSERT INTO contact_messages (name, email, order_name, topic, message) VALUES (?, ?, ?, ?, ?)",
+    [m.name, m.email, m.orderName, m.topic, m.message]);
 }

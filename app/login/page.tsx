@@ -20,7 +20,7 @@ export default async function LoginPage({ searchParams }: Props) {
   if (session) redirect("/account");
 
   const { error } = await searchParams;
-  const city = listCities().find((c) => c.photo) ?? null;
+  const city = (await listCities()).find((c) => c.photo) ?? null;
 
   return (
     <main className="login-split">

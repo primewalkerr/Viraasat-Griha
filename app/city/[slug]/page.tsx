@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const page = getCityPage((await params).slug);
+  const page = await getCityPage((await params).slug);
   if (!page) return { title: "City not found" };
   const { city } = page;
   return {
@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CityPageRoute({ params }: Props) {
-  const page = getCityPage((await params).slug);
+  const page = await getCityPage((await params).slug);
   if (!page) notFound();
   const { city, slides, crafts: craftsRaw, stores } = page;
   const prices = await resolvePrices(craftsRaw.map((c) => `${city.slug}-${c.slug}`));

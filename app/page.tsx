@@ -10,9 +10,8 @@ import { heroVideo, listArt, listCities } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const cities = listCities();
-  const film = heroVideo();
-  const bestRaw = listArt().filter((a) => a.photo).slice(0, 8);
+  const [cities, film, art] = await Promise.all([listCities(), heroVideo(), listArt()]);
+  const bestRaw = art.filter((a) => a.photo).slice(0, 8);
   const prices = await resolvePrices(bestRaw.map((a) => a.productSlug));
   const best = bestRaw.map((a) => ({ ...a, ...prices.get(a.productSlug)! }));
 

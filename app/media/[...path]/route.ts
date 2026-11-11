@@ -19,7 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
   const rel = (await params).path.join("/");
   const type = TYPES[path.extname(rel).toLowerCase()];
   const full = path.resolve(config.mediaDir, rel);
-  if (!type || !full.startsWith(config.mediaDir + path.sep) || !mediaFileAllowed(rel)) {
+  if (!type || !full.startsWith(config.mediaDir + path.sep) || !(await mediaFileAllowed(rel))) {
     return new Response("Not found", { status: 404 });
   }
   let size: number;

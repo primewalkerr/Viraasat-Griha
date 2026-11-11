@@ -7,8 +7,8 @@ import { listCities } from "@/lib/site";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "About", description: about.intro };
 
-export default function AboutPage() {
-  const cities = listCities();
+export default async function AboutPage() {
+  const cities = await listCities();
   const photo = (cities.find((c) => c.slug === "khurja") ?? cities.find((c) => c.photo))?.photo ?? null;
   const n = cities.length;
 

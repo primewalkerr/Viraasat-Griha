@@ -28,7 +28,7 @@ export async function sendContact(_prev: ContactState, form: FormData): Promise<
   if (Object.keys(errors).length) return { ok: false, message: "Please check the highlighted fields.", errors };
 
   try {
-    saveContactMessage({ name, email, orderName, topic, message });
+    await saveContactMessage({ name, email, orderName, topic, message });
   } catch (e) {
     console.error("contact form:", e);
     return { ok: false, message: "Sorry, your message could not be sent just now. Please try again in a few minutes." };
