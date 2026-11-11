@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { addToBag } from "@/app/bag/actions";
 import { dummyVariants } from "@/lib/content";
 import type { CraftTab, Media } from "@/lib/site";
@@ -18,7 +17,6 @@ type Item = CraftTab & { productSlug: string; price: string; image: string | nul
 export default function CraftTabs({ cityName, crafts, preview }: {
   cityName: string; crafts: Item[]; preview: boolean;
 }) {
-  const [i, setI] = useState(0);
   if (!crafts.length) {
     return (
       <section id="story" className="band">
@@ -27,34 +25,12 @@ export default function CraftTabs({ cityName, crafts, preview }: {
       </section>
     );
   }
-  const cur = crafts[i];
+  const cur = crafts[0];
   const variants = dummyVariants(cur.name, cur.productSlug);
 
   return (
     <>
-      <nav className="craft-nav wrap" aria-label={`Crafts of ${cityName}`}>
-        <div className="craft-nav-in">
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span className="kicker">{crafts.length > 1 ? "Explore · tap a craft to switch" : "Explore"}</span>
-            <span className="count">Crafts of {cityName} ({crafts.length})</span>
-          </div>
-          <div className="ctabs" role="tablist">
-            {crafts.map((c, k) => (
-              <button key={c.slug} type="button" role="tab" id={`tab-${c.slug}`} aria-controls="story"
-                aria-selected={k === i} className="ctab" onClick={() => setI(k)}>
-                {c.thumb ? <img src={c.thumb.src} alt="" /> : <span className="thumb-missing" />}
-                <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-                  <span className="nm">{c.name}</span>
-                  <span className="sec">{c.category}</span>
-                </span>
-              </button>
-            ))}
-            <span className="more-crafts" title="More crafts will be added" aria-hidden="true">+</span>
-          </div>
-        </div>
-      </nav>
-
-      <section id="story" className="story" role="tabpanel" aria-labelledby={`tab-${cur.slug}`}>
+      <section id="story" className="story">
         <div className="story-text">
           <h2 className="display h2">The story</h2>
           {cur.giTag && (
