@@ -68,7 +68,9 @@ a:hover { color: var(--madder); }
 
 /* ---------------------------------------------------------------- header */
 .site-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 24px var(--gutter); background: var(--ivory-card); border-bottom: 1px solid var(--line); }
-.logo { text-decoration: none; display: flex; flex-direction: column; gap: 2px; }
+.logo { text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.logo-mark { width: 40px; height: 40px; flex-shrink: 0; }
+.logo-text { display: flex; flex-direction: column; gap: 2px; }
 .logo-en { font-family: var(--display); font-size: 32px; font-weight: 600; letter-spacing: 4px; color: var(--indigo); line-height: 1.1; }
 .logo-hi { font-family: var(--hindi); font-size: 13px; color: var(--muted); }
 .nav-icons { display: flex; align-items: center; gap: 36px; }
@@ -77,6 +79,7 @@ a:hover { color: var(--madder); }
 .bag-count { position: absolute; top: -6px; right: 2px; min-width: 18px; height: 18px; border-radius: 9px; background: var(--madder); color: var(--ivory); font-size: 11px; display: flex; align-items: center; justify-content: center; padding: 0 4px; box-sizing: border-box; }
 @media (max-width: 600px) {
   .site-header { padding: 14px var(--gutter); }
+  .logo-mark { width: 30px; height: 30px; }
   .logo-en { font-size: 22px; letter-spacing: 3px; }
   .nav-icons { gap: 10px; }
   .nav-icons a span { font-size: 11px; }

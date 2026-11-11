@@ -14,8 +14,11 @@ export default async function Header() {
   return (
     <header className="site-header">
       <Link href="/" className="logo" aria-label="Viraasat Griha, home">
-        <span className="logo-en">{brand.name}</span>
-        <span className="logo-hi" lang="hi">{brand.nameHi}</span>
+        <img src="/logo.svg" alt="" width={40} height={40} className="logo-mark" />
+        <span className="logo-text">
+          <span className="logo-en">{brand.name}</span>
+          <span className="logo-hi" lang="hi">{brand.nameHi}</span>
+        </span>
       </Link>
       <nav className="nav-icons" aria-label="Search, wishlist, bag and account">
         <Link href="/search"><SearchIcon /><span>Search</span></Link>

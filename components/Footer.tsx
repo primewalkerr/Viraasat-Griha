@@ -6,7 +6,10 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="footer-cols">
         <div className="footer-brand">
-          <span className="logo-en" style={{ fontSize: 34 }}>{brand.name}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src="/logo.svg" alt="" width={44} height={44} />
+            <span className="logo-en" style={{ fontSize: 34 }}>{brand.name}</span>
+          </span>
           <span className="hindi" lang="hi" style={{ fontSize: 15, color: "var(--muted)" }}>{brand.nameHi}</span>
           <p className="lede" style={{ fontSize: 16, maxWidth: 380 }}>{brand.footerBlurb}</p>
         </div>
