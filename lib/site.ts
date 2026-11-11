@@ -85,10 +85,12 @@ type MediaRow = {
   permission: Permission; city_id: number | null; craft_id: number | null;
 };
 
-/** media.local_path is a path into the media_files table (served by the
- *  /media route); local_path-based files are known to be a directly playable
- *  file, unlike a bare `url` link-out. */
-const fileUrl = (p: string) => "/media/" + p.split("/").map(encodeURIComponent).join("/");
+/** media.local_path is either an absolute CDN URL (Cloudinary, for anything
+ *  uploaded since the migration off Turso blob storage) or a legacy relative
+ *  path into the media_files table (served by the /media route). Either way
+ *  it's known to be a directly playable file, unlike a bare `url` link-out. */
+const fileUrl = (p: string) =>
+  /^https?:\/\//i.test(p) ? p : "/media/" + p.split("/").map(encodeURIComponent).join("/");
 
 function toMedia(r: MediaRow | undefined): Media | null {
   if (!r || !mayShow(r.permission)) return null;
