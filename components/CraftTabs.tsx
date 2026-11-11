@@ -140,9 +140,6 @@ export default function CraftTabs({ cityName, crafts, preview }: {
             {cur.videos.map((v) => (
               <figure key={v.id} className="vid" style={{ margin: 0 }}>
                 <Film m={v} />
-                <figcaption className="meta">
-                  {v.alt && <>{v.alt}<br /></>}<Credit media={v} /> <PermissionTag media={v} />
-                </figcaption>
               </figure>
             ))}
           </div>
