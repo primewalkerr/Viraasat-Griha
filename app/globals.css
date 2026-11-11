@@ -104,12 +104,19 @@ a:hover { color: var(--madder); }
 }
 .hero-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .hero-shade { position: absolute; inset: 0; background: rgba(20, 26, 50, .62); }
-.hero > :not(.hero-media):not(.hero-shade) { position: relative; }
+.hero > :not(.hero-media):not(.hero-shade):not(.video-sound) { position: relative; }
 .hero-eyebrow { margin: 0; font-size: 15px; letter-spacing: 4px; text-transform: uppercase; color: var(--hero-gold); font-weight: 600; }
 .hero-title { margin: 0; font-family: var(--display); font-size: clamp(52px, 9vw, 120px); font-weight: 600; letter-spacing: clamp(3px, .5vw, 6px); line-height: 1; color: var(--ivory); text-wrap: balance; text-shadow: 0 2px 18px rgba(0, 0, 0, .45); }
 .hero-hi { margin: 0; font-family: var(--hindi); font-size: clamp(18px, 2vw, 24px); color: #f1ece0; text-shadow: 0 1px 10px rgba(0, 0, 0, .5); }
 .hero-tag { margin: 0; font-family: var(--display); font-style: italic; font-size: clamp(24px, 3vw, 36px); line-height: 1.2; color: var(--ivory); text-shadow: 0 1px 12px rgba(0, 0, 0, .5); }
 .hero .btn-light { margin-top: 12px; }
+.video-box { position: relative; }
+.video-sound {
+  position: absolute; right: 16px; bottom: 16px; z-index: 2;
+  width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: rgba(20, 26, 50, .55); border: 1px solid rgba(241, 236, 224, .4); color: var(--ivory); cursor: pointer;
+}
+.video-sound:hover { background: rgba(20, 26, 50, .75); }
 @media (max-width: 600px) { .hero { min-height: 560px; padding: 64px var(--gutter) 56px; gap: 14px; } .hero-eyebrow { font-size: 12px; letter-spacing: 3px; } }
 
 /* ---------------------------------------------------------- best strip */

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BestStrip from "@/components/BestStrip";
 import CraftMap from "@/components/CraftMap";
+import HeroVideo from "@/components/HeroVideo";
 import Photo from "@/components/Photo";
 import { brand, home } from "@/lib/content";
 import { config } from "@/lib/config";
@@ -18,9 +19,7 @@ export default async function HomePage() {
   return (
     <main>
       <section className="hero" aria-labelledby="hero-h">
-        {film && (
-          <video className="hero-media" src={film.src} poster={film.poster ?? undefined} autoPlay muted loop playsInline aria-hidden="true" />
-        )}
+        {film && <HeroVideo src={film.src} poster={film.poster ?? undefined} />}
         <div className="hero-shade" />
         <p className="hero-eyebrow">{brand.eyebrow}</p>
         <h1 id="hero-h" className="hero-title">{brand.name}</h1>

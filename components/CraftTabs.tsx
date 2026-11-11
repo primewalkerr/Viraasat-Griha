@@ -1,14 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { addToBag } from "@/app/bag/actions";
 import { dummyVariants } from "@/lib/content";
 import type { CraftTab, Media } from "@/lib/site";
+import { SoundOffIcon, SoundOnIcon } from "./Icons";
 import Photo, { Credit, PermissionTag } from "./Photo";
 
 function Film({ m }: { m: Media }) {
+  const [muted, setMuted] = useState(true);
   return (
-    <video src={m.src} poster={m.poster ?? undefined} controls preload="none" playsInline aria-label={m.alt || "Film of the craft"} />
+    <div className="video-box">
+      <video src={m.src} poster={m.poster ?? undefined} autoPlay muted={muted} loop playsInline preload="auto" aria-label={m.alt || "Film of the craft"} />
+      <button type="button" className="video-sound" aria-label={muted ? "Unmute video" : "Mute video"} onClick={() => setMuted((v) => !v)}>
+        {muted ? <SoundOffIcon /> : <SoundOnIcon />}
+      </button>
+    </div>
   );
 }
 

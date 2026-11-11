@@ -18,3 +18,17 @@ export const FilterIcon = () => (
 export const Caret = () => (
   <svg {...base} width={14} height={14} strokeWidth={2.4} className="caret"><path d="M5 9l7 7 7-7" /></svg>
 );
+export const SoundOnIcon = () => (
+  <svg {...base} width={20} height={20}>
+    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+    <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+  </svg>
+);
+export const SoundOffIcon = () => (
+  <svg {...base} width={20} height={20}>
+    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+    <path d="M22 9l-6 6" />
+    <path d="M16 9l6 6" />
+  </svg>
+);
