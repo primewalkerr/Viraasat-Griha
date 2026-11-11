@@ -345,9 +345,19 @@ export async function getCityPage(slug: string): Promise<CityPage | null> {
 
 /* ------------------------------------------------------------------- home */
 
-/** The home page background film: the first video the site may show. */
+/** The home page background film: the admin's explicit pick (site_settings),
+ *  falling back to the first cleared video if none is set or it's not
+ *  playable (e.g. permission was since refused). */
 export async function heroVideo(): Promise<Media | null> {
-  const rows = (await allMedia()).filter((m) => m.kind === "video" && m.local_path);
+  const media = await allMedia();
+  if (await tableExists("site_settings")) {
+    const row = await get<{ value: string | null }>(
+      "SELECT value FROM site_settings WHERE key = 'homepage_video_media_id'");
+    const pickedId = row?.value ? Number(row.value) : null;
+    const picked = pickedId ? toMedia(media.find((m) => m.id === pickedId)) : null;
+    if (picked) return picked;
+  }
+  const rows = media.filter((m) => m.kind === "video" && m.local_path);
   rows.sort((a, b) => Number(isCleared(b.permission)) - Number(isCleared(a.permission)));
   return rows.map(toMedia).find(Boolean) ?? null;
 }
