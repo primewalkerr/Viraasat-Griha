@@ -360,9 +360,9 @@ a:hover { color: var(--madder); }
 .soon-box { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px; padding: 36px; background: var(--ivory-band); border: 1px solid var(--line); }
 .shop-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 32px; }
 .shop-view-all { font-size: 15px; font-weight: 600; color: var(--indigo); border-bottom: 2px solid var(--madder); padding-bottom: 4px; text-decoration: none; white-space: nowrap; }
-.shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 32px; }
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 32px; justify-items: center; }
 .shop-grid.single { grid-template-columns: minmax(260px, 360px); }
-.shop-card { background: var(--ivory-card); border: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+.shop-card { width: 100%; max-width: 360px; background: var(--ivory-card); border: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
 .shop-card .img { display: block; position: relative; height: 320px; background: var(--ivory-band); overflow: hidden; }
 .shop-card .img img, .shop-card .img .photo-missing { width: 100%; height: 100%; object-fit: cover; display: block; }
 .shop-card .img .tag { position: absolute; left: 12px; top: 12px; color: var(--madder); }
