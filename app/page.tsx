@@ -5,7 +5,7 @@ import HeroVideo from "@/components/HeroVideo";
 import Photo from "@/components/Photo";
 import { brand, home } from "@/lib/content";
 import { config } from "@/lib/config";
-import { resolvePrices } from "@/lib/shopify";
+import { resolveCardPrices } from "@/lib/shopify";
 import { heroVideo, listArt, listCities } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const [cities, film, art] = await Promise.all([listCities(), heroVideo(), listArt()]);
   const bestRaw = art.filter((a) => a.photo).slice(0, 8);
-  const prices = await resolvePrices(bestRaw.map((a) => a.productSlug));
+  const prices = await resolveCardPrices(bestRaw);
   const best = bestRaw.map((a) => ({ ...a, ...prices.get(a.productSlug)! }));
 
   return (

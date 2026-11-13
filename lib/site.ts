@@ -241,15 +241,16 @@ export async function listArt() {
   const st = visibleStatuses();
   const rows = await all<{
     city_id: number; city_slug: string; craft_id: number; slug: string; name: string; category: string;
-    is_featured: number; shop_live: number;
+    is_featured: number; collection_handle: string | null;
   }>(`
     SELECT c.id AS city_id, c.slug AS city_slug, cr.id AS craft_id, cr.slug, cr.name, cat.name AS category,
            cc.is_featured, cr.making_media_id,
-           EXISTS (SELECT 1 FROM shop_collections sc WHERE sc.craft_id = cr.id AND sc.is_live = 1) AS shop_live
+           sc.shopify_handle AS collection_handle
     FROM city_crafts cc
     JOIN cities c ON c.id = cc.city_id
     JOIN crafts cr ON cr.id = cc.craft_id AND cr.status <> 'hidden'
     JOIN categories cat ON cat.id = cr.category_id
+    LEFT JOIN shop_collections sc ON sc.craft_id = cr.id AND sc.is_live = 1
     WHERE c.status IN (${inList(st.length)})
     ORDER BY c.pin_number IS NULL, c.pin_number, cc.is_featured DESC, cc.sort_order, cr.name`, st);
   return rows.map((r, i) => {
@@ -260,7 +261,8 @@ export async function listArt() {
       key: r.city_slug + "/" + r.slug, productSlug: r.city_slug + "-" + r.slug, order: i, craft: r.name, category: r.category,
       city: city.name, citySlug: city.slug, state: city.state,
       photo: (r.is_featured ? city.photo : null) ?? craftPhoto ?? city.photo,
-      shopLive: !!r.shop_live && config.shopifyReady,
+      collectionHandle: r.collection_handle,
+      shopLive: !!r.collection_handle && config.shopifyReady,
     };
   });
 }

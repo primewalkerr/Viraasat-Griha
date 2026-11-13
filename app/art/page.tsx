@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import ArtGrid from "@/components/ArtGrid";
-import { resolvePrices } from "@/lib/shopify";
+import { resolveCardPrices } from "@/lib/shopify";
 import { listArt } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "All art", description: "Every craft 
 
 export default async function AllArtPage() {
   const raw = await listArt();
-  const prices = await resolvePrices(raw.map((a) => a.productSlug));
+  const prices = await resolveCardPrices(raw);
   const items = raw.map((a) => ({ ...a, ...prices.get(a.productSlug)! }));
   return (
     <main className="main">

@@ -4,7 +4,7 @@ import { dummyPrice, dummyPriceValue } from "./content";
 
 const API_VERSION = "2025-01";
 
-type ShopifyProduct = {
+export type ShopifyProduct = {
   title: string;
   handle: string;
   amount: number;
@@ -96,7 +96,55 @@ async function getShopifyProducts(handles: string[]): Promise<Map<string, Shopif
   return out;
 }
 
+const COLLECTION_PRODUCTS = `
+  query CollectionProducts($handle: String!) {
+    collectionByHandle(handle: $handle) {
+      products(first: 50) { edges { node {
+        title handle
+        featuredImage { url }
+        priceRange { minVariantPrice { amount currencyCode } }
+        variants(first: 1) { edges { node { id } } }
+      } } }
+    }
+  }
+`;
+
+/** Every real Shopify product in a craft's collection (its `shop_collections.shopify_handle`). */
+export async function getCollectionProducts(handle: string): Promise<ShopifyProduct[]> {
+  const data = await storefrontFetch<{ collectionByHandle: { products: { edges: { node: ProductNode }[] } } | null }>(
+    COLLECTION_PRODUCTS, { handle },
+  );
+  return (data?.collectionByHandle?.products.edges ?? []).map((e) => toProduct(e.node));
+}
+
 export type ResolvedPrice = { price: string; value: number; image: string | null; variantId: string | null; real: boolean };
+
+/**
+ * A representative price/photo for each craft card on a listing grid: the cheapest real product
+ * in its live Shopify collection when one has products, the single derived-handle match or dummy
+ * placeholder otherwise. Cards without a card.handle to link to (a collection card) should still
+ * link to the craft overview page (`/product/<productSlug>`), which then shows the full grid.
+ */
+export async function resolveCardPrices(
+  cards: { productSlug: string; shopLive: boolean; collectionHandle: string | null }[],
+): Promise<Map<string, ResolvedPrice>> {
+  const withCollection = cards.filter((c) => c.shopLive && c.collectionHandle);
+  const collectionResults = await Promise.all(withCollection.map((c) => getCollectionProducts(c.collectionHandle!)));
+
+  const out = new Map<string, ResolvedPrice>();
+  const remaining: string[] = [];
+  withCollection.forEach((c, i) => {
+    const items = collectionResults[i];
+    const cheapest = items.length ? items.reduce((a, b) => (b.amount < a.amount ? b : a)) : null;
+    if (cheapest) out.set(c.productSlug, { price: cheapest.price, value: cheapest.amount, image: cheapest.image, variantId: cheapest.variantId, real: true });
+    else remaining.push(c.productSlug);
+  });
+  for (const c of cards) if (!(c.shopLive && c.collectionHandle)) remaining.push(c.productSlug);
+
+  const fallback = await resolvePrices(remaining);
+  for (const slug of remaining) out.set(slug, fallback.get(slug)!);
+  return out;
+}
 
 /**
  * A price (and photo) for each product slug: the real Shopify listing when its handle matches,
