@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import CityHero from "@/components/CityHero";
 import CraftTabs from "@/components/CraftTabs";
 import { config } from "@/lib/config";
-import { resolvePrices } from "@/lib/shopify";
+import { resolveCardPrices } from "@/lib/shopify";
 import { getCityPage } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +25,9 @@ export default async function CityPageRoute({ params }: Props) {
   const page = await getCityPage((await params).slug);
   if (!page) notFound();
   const { city, slides, crafts: craftsRaw, stores } = page;
-  const prices = await resolvePrices(craftsRaw.map((c) => `${city.slug}-${c.slug}`));
-  const crafts = craftsRaw.map((c) => {
-    const productSlug = `${city.slug}-${c.slug}`;
-    return { ...c, productSlug, ...prices.get(productSlug)! };
-  });
+  const cards = craftsRaw.map((c) => ({ ...c, productSlug: `${city.slug}-${c.slug}` }));
+  const prices = await resolveCardPrices(cards);
+  const crafts = cards.map((c) => ({ ...c, ...prices.get(c.productSlug)! }));
   const category = crafts[0]?.category;
   const checkedDates = stores.map((s) => s.ratingCheckedAt).filter(Boolean).sort();
 

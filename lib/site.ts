@@ -48,6 +48,8 @@ export type CraftTab = {
   videos: Media[];
   giYear: number | null;
   giTag: boolean;
+  collectionHandle: string | null;
+  shopLive: boolean;
 };
 
 export type Store = {
@@ -295,10 +297,11 @@ export async function getCityPage(slug: string): Promise<CityPage | null> {
 
   const craftRows = await all<{
     id: number; slug: string; name: string; category: string; making_media_id: number | null;
-    gi_tag: number; gi_year: number | null;
+    gi_tag: number; gi_year: number | null; collection_handle: string | null;
   }>(`
-    SELECT cr.*, cat.name AS category, cc.is_featured
+    SELECT cr.*, cat.name AS category, cc.is_featured, sc.shopify_handle AS collection_handle
     FROM city_crafts cc JOIN crafts cr ON cr.id = cc.craft_id JOIN categories cat ON cat.id = cr.category_id
+    LEFT JOIN shop_collections sc ON sc.craft_id = cr.id AND sc.is_live = 1
     WHERE cc.city_id = ? AND cr.status <> 'hidden'
     ORDER BY cc.is_featured DESC, cc.sort_order, cr.name`, [row.id]);
 
@@ -328,6 +331,7 @@ export async function getCityPage(slug: string): Promise<CityPage | null> {
     return {
       slug: cr.slug, name: cr.name, category: cr.category, thumb, paragraphs, film,
       videos: videos.filter((v) => v.id !== film?.id), giTag: !!cr.gi_tag, giYear: cr.gi_year,
+      collectionHandle: cr.collection_handle, shopLive: !!cr.collection_handle && config.shopifyReady,
     };
   }));
 
