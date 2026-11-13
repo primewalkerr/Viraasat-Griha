@@ -2,33 +2,30 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { ArtCard } from "@/lib/site";
+import type { ShopifyProduct } from "@/lib/shopify";
 import { Caret, FilterIcon } from "./Icons";
-import Photo from "./Photo";
 
 const SORTS = [
   ["featured", "Featured"],
-  ["az", "Craft: A to Z"],
-  ["za", "Craft: Z to A"],
-  ["state", "State"],
+  ["az", "Name: A to Z"],
+  ["za", "Name: Z to A"],
+  ["low", "Price: Low to High"],
+  ["high", "Price: High to Low"],
 ] as const;
 type Sort = (typeof SORTS)[number][0];
 
 const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 const uniq = (a: string[]) => [...new Set(a)];
 
-type Item = ArtCard & { price: string; value: number; image: string | null; linkSlug: string };
-
-export default function ArtGrid({ items, soonLabel }: { items: Item[]; soonLabel: string }) {
-  const [crafts, setCrafts] = useState<string[]>([]);
-  const [states, setStates] = useState<string[]>([]);
+export default function ArtGrid({ items }: { items: ShopifyProduct[] }) {
+  const [categories, setCategories] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [sort, setSort] = useState<Sort>("featured");
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
-  const clearAll = () => { setCrafts([]); setStates([]); setMinPrice(""); setMaxPrice(""); };
+  const clearAll = () => { setCategories([]); setMinPrice(""); setMaxPrice(""); };
 
   // Close menus on outside click or Escape.
   useEffect(() => {
@@ -42,19 +39,20 @@ export default function ArtGrid({ items, soonLabel }: { items: Item[]; soonLabel
     return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
   }, []);
 
-  const craftNames = uniq(items.map((x) => x.craft)).sort();
-  const stateNames = uniq(items.map((x) => x.state)).sort();
+  const categoryNames = uniq(items.map((x) => x.productType).filter(Boolean)).sort();
   const min = minPrice ? Number(minPrice) : null;
   const max = maxPrice ? Number(maxPrice) : null;
   const list = items
-    .filter((x) => (!crafts.length || crafts.includes(x.craft)) && (!states.length || states.includes(x.state)))
-    .filter((x) => (min == null || x.value >= min) && (max == null || x.value <= max))
+    .map((x, order) => ({ ...x, order }))
+    .filter((x) => !categories.length || categories.includes(x.productType))
+    .filter((x) => (min == null || x.amount >= min) && (max == null || x.amount <= max))
     .sort((a, b) =>
-      sort === "az" ? a.craft.localeCompare(b.craft)
-        : sort === "za" ? b.craft.localeCompare(a.craft)
-          : sort === "state" ? a.state.localeCompare(b.state) || a.order - b.order
-            : a.order - b.order);
-  const active = crafts.length + states.length + (min != null || max != null ? 1 : 0);
+      sort === "az" ? a.title.localeCompare(b.title)
+        : sort === "za" ? b.title.localeCompare(a.title)
+          : sort === "low" ? a.amount - b.amount
+            : sort === "high" ? b.amount - a.amount
+              : a.order - b.order);
+  const active = categories.length + (min != null || max != null ? 1 : 0);
 
   return (
     <>
@@ -66,18 +64,16 @@ export default function ArtGrid({ items, soonLabel }: { items: Item[]; soonLabel
           </button>
           {filterOpen && (
             <div className="dd-panel" role="dialog" aria-label="Filters">
-              <span className="label">Craft</span>
-              <div className="chips">
-                {craftNames.map((n) => (
-                  <button key={n} type="button" className="chip" aria-pressed={crafts.includes(n)} onClick={() => setCrafts(toggle(crafts, n))}>{n}</button>
-                ))}
-              </div>
-              <span className="label">State</span>
-              <div className="chips">
-                {stateNames.map((n) => (
-                  <button key={n} type="button" className="chip" aria-pressed={states.includes(n)} onClick={() => setStates(toggle(states, n))}>{n}</button>
-                ))}
-              </div>
+              {categoryNames.length > 0 && (
+                <>
+                  <span className="label">Category</span>
+                  <div className="chips">
+                    {categoryNames.map((n) => (
+                      <button key={n} type="button" className="chip" aria-pressed={categories.includes(n)} onClick={() => setCategories(toggle(categories, n))}>{n}</button>
+                    ))}
+                  </div>
+                </>
+              )}
               <span className="label">Price range</span>
               <div className="price-range">
                 <span>₹</span>
@@ -125,14 +121,12 @@ export default function ArtGrid({ items, soonLabel }: { items: Item[]; soonLabel
       ) : (
         <div className="art-grid">
           {list.map((a) => (
-            <Link key={a.key} href={`/product/${a.linkSlug}`} className="card art-card">
+            <Link key={a.handle} href={`/product/${a.handle}`} className="card art-card">
               <div className="img">
-                {a.image ? <img src={a.image} alt={`${a.craft} from ${a.city}`} className="ph" /> : <Photo media={a.photo} alt={`${a.craft} from ${a.city}`} className="ph" />}
-                {!a.shopLive && <span className="tag soon">{soonLabel}</span>}
+                {a.image ? <img src={a.image} alt={a.title} className="ph" /> : null}
               </div>
               <div className="body">
-                <span className="craft">{a.craft}</span>
-                <span className="place">{a.city} · {a.state}</span>
+                <span className="craft">{a.title}</span>
                 <span className="price">{a.price}</span>
               </div>
             </Link>

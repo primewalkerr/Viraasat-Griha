@@ -15,6 +15,7 @@ export type ShopifyProduct = {
   price: string;      // formatted for display, e.g. "₹899"
   image: string | null;
   variantId: string | null;
+  productType: string;
 };
 
 async function storefrontFetch<T>(query: string, variables?: Record<string, unknown>): Promise<T | null> {
@@ -42,7 +43,7 @@ function formatPrice(amount: string, currency: string): string {
 }
 
 type ProductNode = {
-  title: string; handle: string;
+  title: string; handle: string; productType: string;
   featuredImage: { url: string } | null;
   priceRange: { minVariantPrice: { amount: string; currencyCode: string } };
   variants: { edges: { node: { id: string } }[] };
@@ -52,18 +53,20 @@ function toProduct(p: ProductNode): ShopifyProduct {
   const { amount, currencyCode } = p.priceRange.minVariantPrice;
   return {
     title: p.title, handle: p.handle, amount: Number(amount), currency: currencyCode, price: formatPrice(amount, currencyCode),
-    image: p.featuredImage?.url ?? null, variantId: p.variants.edges[0]?.node.id ?? null,
+    image: p.featuredImage?.url ?? null, variantId: p.variants.edges[0]?.node.id ?? null, productType: p.productType,
   };
 }
 
+const PRODUCT_FIELDS = `
+  title handle productType
+  featuredImage { url }
+  priceRange { minVariantPrice { amount currencyCode } }
+  variants(first: 1) { edges { node { id } } }
+`;
+
 const PRODUCT_BY_HANDLE = `
   query ProductByHandle($handle: String!) {
-    productByHandle(handle: $handle) {
-      title handle
-      featuredImage { url }
-      priceRange { minVariantPrice { amount currencyCode } }
-      variants(first: 1) { edges { node { id } } }
-    }
+    productByHandle(handle: $handle) { ${PRODUCT_FIELDS} }
   }
 `;
 
@@ -71,6 +74,18 @@ const PRODUCT_BY_HANDLE = `
 export async function getShopifyProduct(handle: string): Promise<ShopifyProduct | null> {
   const data = await storefrontFetch<{ productByHandle: ProductNode | null }>(PRODUCT_BY_HANDLE, { handle });
   return data?.productByHandle ? toProduct(data.productByHandle) : null;
+}
+
+const ALL_PRODUCTS = `
+  query AllProducts($first: Int!) {
+    products(first: $first, sortKey: TITLE) { edges { node { ${PRODUCT_FIELDS} } } }
+  }
+`;
+
+/** Every real product in the store, for the "All art" page — the whole catalogue, not a curated collection. */
+export async function getAllProducts(): Promise<ShopifyProduct[]> {
+  const data = await storefrontFetch<{ products: { edges: { node: ProductNode }[] } }>(ALL_PRODUCTS, { first: 250 });
+  return (data?.products.edges ?? []).map((e) => toProduct(e.node));
 }
 
 export type ProductVariant = {
@@ -151,14 +166,7 @@ export async function getShopifyProductDetail(handle: string): Promise<ShopifyPr
 
 const PRODUCTS_BY_HANDLES = `
   query ProductsByHandles($query: String!) {
-    products(first: 50, query: $query) {
-      edges { node {
-        title handle
-        featuredImage { url }
-        priceRange { minVariantPrice { amount currencyCode } }
-        variants(first: 1) { edges { node { id } } }
-      } }
-    }
+    products(first: 50, query: $query) { edges { node { ${PRODUCT_FIELDS} } } }
   }
 `;
 
@@ -178,12 +186,7 @@ async function getShopifyProducts(handles: string[]): Promise<Map<string, Shopif
 const COLLECTION_PRODUCTS = `
   query CollectionProducts($handle: String!) {
     collectionByHandle(handle: $handle) {
-      products(first: 50) { edges { node {
-        title handle
-        featuredImage { url }
-        priceRange { minVariantPrice { amount currencyCode } }
-        variants(first: 1) { edges { node { id } } }
-      } } }
+      products(first: 50) { edges { node { ${PRODUCT_FIELDS} } } }
     }
   }
 `;
