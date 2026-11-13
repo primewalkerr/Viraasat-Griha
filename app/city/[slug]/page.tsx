@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import CityHero from "@/components/CityHero";
 import CraftTabs from "@/components/CraftTabs";
 import { config } from "@/lib/config";
-import { resolveCardPrices } from "@/lib/shopify";
+import { getCollectionProducts, resolveCardPrices } from "@/lib/shopify";
 import { getCityPage } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,10 @@ export default async function CityPageRoute({ params }: Props) {
   const crafts = cards.map((c) => ({ ...c, ...prices.get(c.productSlug)! }));
   const category = crafts[0]?.category;
   const checkedDates = stores.map((s) => s.ratingCheckedAt).filter(Boolean).sort();
+  // CraftTabs only ever shows crafts[0] (the city's featured craft); fetch its full collection
+  // so the shop section can show every real piece, not just the cheapest one.
+  const cur = crafts[0];
+  const shopItems = cur?.shopLive && cur.collectionHandle ? await getCollectionProducts(cur.collectionHandle) : [];
 
   return (
     <main>
@@ -37,7 +41,7 @@ export default async function CityPageRoute({ params }: Props) {
         eyebrow={[city.state, category].filter(Boolean).join(" · ")}
         tagline={city.tagline ?? city.craft} />
 
-      <CraftTabs cityName={city.name} crafts={crafts} preview={config.preview} />
+      <CraftTabs cityName={city.name} crafts={crafts} items={shopItems} preview={config.preview} />
 
       <section className="band" aria-labelledby="buy-h">
         <h2 id="buy-h" className="display h2">Where to buy</h2>

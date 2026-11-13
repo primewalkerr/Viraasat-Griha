@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { addToBag } from "@/app/bag/actions";
 import { dummyVariants } from "@/lib/content";
+import type { ShopifyProduct } from "@/lib/shopify";
 import type { CraftTab, Media } from "@/lib/site";
 import { SoundOffIcon, SoundOnIcon } from "./Icons";
 import Photo from "./Photo";
@@ -22,8 +23,8 @@ function Film({ m }: { m: Media }) {
 
 type Item = CraftTab & { productSlug: string; price: string; image: string | null; real: boolean; linkSlug: string };
 
-export default function CraftTabs({ cityName, crafts, preview }: {
-  cityName: string; crafts: Item[]; preview: boolean;
+export default function CraftTabs({ cityName, crafts, items, preview }: {
+  cityName: string; crafts: Item[]; items: ShopifyProduct[]; preview: boolean;
 }) {
   if (!crafts.length) {
     return (
@@ -84,14 +85,37 @@ export default function CraftTabs({ cityName, crafts, preview }: {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <h2 id="shop-h" className="display h2">Shop {cur.name}</h2>
             <p className="lede" style={{ margin: 0 }}>
-              {cur.real
-                ? `Pieces of ${cur.name.toLowerCase()} from ${cityName}, made by hand.`
-                : "Preview of the future Shopify collection. Names, prices and photos below are placeholders."}
+              {items.length > 0
+                ? `${items.length} piece${items.length === 1 ? "" : "s"} of ${cur.name.toLowerCase()} from ${cityName}, made by hand.`
+                : cur.real
+                  ? `Pieces of ${cur.name.toLowerCase()} from ${cityName}, made by hand.`
+                  : "Preview of the future Shopify collection. Names, prices and photos below are placeholders."}
             </p>
           </div>
           <Link href="/art" className="shop-view-all">View the whole collection →</Link>
         </div>
-        {cur.real ? (
+        {items.length > 0 ? (
+          <div className="shop-grid">
+            {items.map((item) => (
+              <div key={item.handle} className="card shop-card">
+                <Link href={`/product/${item.handle}`} aria-label={item.title} className="img">
+                  {item.image ? <img src={item.image} alt={item.title} /> : <Photo media={cur.thumb} alt={item.title} />}
+                </Link>
+                <div className="body">
+                  <Link href={`/product/${item.handle}`} className="nm">{item.title}</Link>
+                  <span className="maker">Made by hand in {cityName}</span>
+                  <div className="buy">
+                    <span className="price">{item.price}</span>
+                    <form action={addToBag}>
+                      <input type="hidden" name="productSlug" value={item.handle} />
+                      <button type="submit" className="btn" style={{ padding: "10px 18px", fontSize: 14 }}>Add to bag</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : cur.real ? (
           <div className="shop-grid single">
             <div className="card shop-card">
               <Link href={`/product/${cur.linkSlug}`} aria-label={cur.name} className="img">
