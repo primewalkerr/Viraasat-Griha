@@ -71,7 +71,8 @@ export default function ProductDetail({ product }: { product: ShopifyProductDeta
         {/* Shopify-authored product description, same trust level as the title/price; the merchant controls this via Shopify admin. */}
         {descriptionHtml && <div className="lede" style={{ maxWidth: 560 }} dangerouslySetInnerHTML={{ __html: descriptionHtml }} />}
 
-        {options.map((opt) => (
+        {/* A product with no real variants still gets one Shopify-generated option, "Title": ["Default Title"] — nothing to choose, so skip it. */}
+        {options.filter((opt) => opt.values.length > 1).map((opt) => (
           <div key={opt.name} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{opt.name}</span>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
