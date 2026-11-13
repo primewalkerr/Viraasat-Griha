@@ -70,6 +70,82 @@ export async function getShopifyProduct(handle: string): Promise<ShopifyProduct 
   return data?.productByHandle ? toProduct(data.productByHandle) : null;
 }
 
+export type ProductVariant = {
+  id: string;
+  title: string;
+  availableForSale: boolean;
+  amount: number;
+  price: string;
+  compareAtAmount: number | null;
+  compareAtPrice: string | null;
+  options: Record<string, string>; // e.g. { Size: "Medium" }
+  image: string | null;
+};
+
+export type ShopifyProductDetail = {
+  title: string;
+  handle: string;
+  descriptionHtml: string;
+  vendor: string;
+  availableForSale: boolean;
+  images: { url: string; alt: string | null }[];
+  options: { name: string; values: string[] }[];
+  variants: ProductVariant[];
+};
+
+type ProductDetailNode = {
+  title: string; handle: string; descriptionHtml: string; vendor: string; availableForSale: boolean;
+  images: { edges: { node: { url: string; altText: string | null } }[] };
+  options: { name: string; values: string[] }[];
+  variants: { edges: { node: {
+    id: string; title: string; availableForSale: boolean;
+    price: { amount: string; currencyCode: string };
+    compareAtPrice: { amount: string; currencyCode: string } | null;
+    selectedOptions: { name: string; value: string }[];
+    image: { url: string } | null;
+  } }[] };
+};
+
+const PRODUCT_DETAIL = `
+  query ProductDetail($handle: String!) {
+    productByHandle(handle: $handle) {
+      title handle descriptionHtml vendor availableForSale
+      images(first: 10) { edges { node { url altText } } }
+      options { name values }
+      variants(first: 100) { edges { node {
+        id title availableForSale
+        price { amount currencyCode }
+        compareAtPrice { amount currencyCode }
+        selectedOptions { name value }
+        image { url }
+      } } }
+    }
+  }
+`;
+
+function toProductDetail(p: ProductDetailNode): ShopifyProductDetail {
+  return {
+    title: p.title, handle: p.handle, descriptionHtml: p.descriptionHtml, vendor: p.vendor,
+    availableForSale: p.availableForSale,
+    images: p.images.edges.map((e) => ({ url: e.node.url, alt: e.node.altText })),
+    options: p.options,
+    variants: p.variants.edges.map(({ node: v }) => ({
+      id: v.id, title: v.title, availableForSale: v.availableForSale,
+      amount: Number(v.price.amount), price: formatPrice(v.price.amount, v.price.currencyCode),
+      compareAtAmount: v.compareAtPrice ? Number(v.compareAtPrice.amount) : null,
+      compareAtPrice: v.compareAtPrice ? formatPrice(v.compareAtPrice.amount, v.compareAtPrice.currencyCode) : null,
+      options: Object.fromEntries(v.selectedOptions.map((o) => [o.name, o.value])),
+      image: v.image?.url ?? null,
+    })),
+  };
+}
+
+/** Everything the product detail page needs: full gallery, description, variants/options, stock status. */
+export async function getShopifyProductDetail(handle: string): Promise<ShopifyProductDetail | null> {
+  const data = await storefrontFetch<{ productByHandle: ProductDetailNode | null }>(PRODUCT_DETAIL, { handle });
+  return data?.productByHandle ? toProductDetail(data.productByHandle) : null;
+}
+
 const PRODUCTS_BY_HANDLES = `
   query ProductsByHandles($query: String!) {
     products(first: 50, query: $query) {

@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Photo from "@/components/Photo";
+import ProductDetail from "@/components/ProductDetail";
 import { addToBag } from "@/app/bag/actions";
 import { dummyPrice } from "@/lib/content";
-import { getCollectionProducts, getShopifyProduct, type ShopifyProduct } from "@/lib/shopify";
+import { getCollectionProducts, getShopifyProduct, getShopifyProductDetail, type ShopifyProduct } from "@/lib/shopify";
 import { getProduct, type ArtCard } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -34,9 +35,13 @@ export default async function ProductPage({ params }: Props) {
     return items.length > 0 ? <CraftGrid craft={a} items={items} /> : <CraftPlaceholder craft={a} />;
   }
 
-  const item = await getShopifyProduct(slug);
-  if (!item) notFound();
-  return <ItemDetail item={item} />;
+  const detail = await getShopifyProductDetail(slug);
+  if (!detail) notFound();
+  return (
+    <main className="main">
+      <ProductDetail product={detail} />
+    </main>
+  );
 }
 
 /** Every real piece in a craft's Shopify collection, each card linking to its own product page. */
@@ -63,33 +68,6 @@ function CraftGrid({ craft: a, items }: { craft: ArtCard; items: ShopifyProduct[
       </div>
       <div style={{ marginTop: 24 }}>
         <Link className="ghost" href={`/city/${a.citySlug}`}>See the city &amp; story</Link>
-      </div>
-    </main>
-  );
-}
-
-/** A single real Shopify product, looked up directly by its own handle (no craft/city framing). */
-function ItemDetail({ item }: { item: ShopifyProduct }) {
-  return (
-    <main className="main">
-      <div className="product-detail">
-        <div className="product-img">
-          {item.image ? <img src={item.image} alt={item.title} /> : null}
-        </div>
-        <div className="product-info">
-          <h1 className="display h1">{item.title}</h1>
-          <p className="product-price">{item.price}</p>
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12 }}>
-            {item.variantId && (
-              <form action={addToBag}>
-                <input type="hidden" name="productSlug" value={item.handle} />
-                <button type="submit" className="btn">Add to bag</button>
-              </form>
-            )}
-            <Link className="ghost" href="/art">See more art</Link>
-            <Link className="ghost" href="/contact">Ask about this piece</Link>
-          </div>
-        </div>
       </div>
     </main>
   );

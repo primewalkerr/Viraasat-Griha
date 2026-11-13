@@ -248,10 +248,19 @@ a:hover { color: var(--madder); }
 
 /* -------------------------------------------------------- product (placeholder) */
 .product-detail { display: flex; flex-wrap: wrap; gap: 48px; align-items: flex-start; }
-.product-img { flex: 1 1 420px; max-width: 560px; aspect-ratio: 4 / 5; overflow: hidden; background: var(--ivory-card); border: 1px solid var(--line); }
+.product-gallery { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; flex: 1 1 420px; max-width: 560px; }
+.product-thumbs { flex: 0 0 72px; display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; }
+.product-thumb { width: 64px; height: 64px; padding: 0; border: 1px solid var(--line); background: var(--ivory-band); cursor: pointer; overflow: hidden; }
+.product-thumb.active { border-color: var(--indigo); border-width: 2px; }
+.product-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.product-img { flex: 1 1 340px; max-width: 480px; aspect-ratio: 4 / 5; overflow: hidden; background: var(--ivory-card); border: 1px solid var(--line); }
 .product-img img, .product-img .photo-missing { width: 100%; height: 100%; object-fit: cover; display: block; }
 .product-info { flex: 1 1 360px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
 .product-price { margin: 0; font-size: 28px; font-weight: 600; color: var(--madder); }
+.stock-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.qty-stepper { display: flex; align-items: center; border: 1px solid var(--line-strong); background: var(--ivory-card); }
+.qty-stepper button { width: 44px; height: 48px; border: 0; background: transparent; font-size: 20px; color: var(--indigo); cursor: pointer; }
+.qty-stepper span { width: 36px; text-align: center; font-weight: 600; }
 
 /* -------------------------------------------------------------------- bag */
 .bag-empty { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; padding: 72px 0; border-top: 1px solid var(--line); margin-top: 16px; }

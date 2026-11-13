@@ -15,14 +15,24 @@ async function setCartId(id: string) {
   (await cookies()).set(COOKIE, id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
 }
 
-/** Adds one of a craft's real Shopify variant to the bag, creating the cart if this is the first item. */
+/**
+ * Adds a Shopify variant to the bag, creating the cart if this is the first item.
+ * Pass `variantId` + `quantity` directly (the product detail page, which knows which
+ * variant is selected); simpler callers can pass just `productSlug` and get that
+ * product's first variant at quantity 1, as before.
+ */
 export async function addToBag(formData: FormData) {
   const productSlug = String(formData.get("productSlug") ?? "");
-  const product = productSlug ? await getShopifyProduct(productSlug) : null;
-  if (product?.variantId) {
+  const quantity = Math.max(1, Number(formData.get("quantity") ?? 1));
+  let variantId = String(formData.get("variantId") ?? "");
+  if (!variantId) {
+    const product = productSlug ? await getShopifyProduct(productSlug) : null;
+    variantId = product?.variantId ?? "";
+  }
+  if (variantId) {
     const cartId = await getCartId();
-    const cart = cartId ? await addCartLine(cartId, product.variantId, 1) : null;
-    const resolved = cart ?? (await createCart(product.variantId, 1));
+    const cart = cartId ? await addCartLine(cartId, variantId, quantity) : null;
+    const resolved = cart ?? (await createCart(variantId, quantity));
     if (resolved && resolved.id !== cartId) await setCartId(resolved.id);
   }
   revalidatePath("/", "layout"); // the header's bag-count badge lives in the root layout
