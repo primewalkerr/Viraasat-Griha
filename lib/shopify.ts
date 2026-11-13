@@ -4,6 +4,9 @@ import { dummyPrice, dummyPriceValue } from "./content";
 
 const API_VERSION = "2025-01";
 
+/** The homepage "Best of Indian art" strip: every real product in this one curated Shopify collection. */
+export const BEST_COLLECTION_HANDLE = "best-of-indian-art";
+
 export type ShopifyProduct = {
   title: string;
   handle: string;

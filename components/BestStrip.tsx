@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ArtCard } from "@/lib/site";
-import Photo from "./Photo";
+import type { ShopifyProduct } from "@/lib/shopify";
 
 const W = 280, G = 72, EASE = "1.2s cubic-bezier(.65,0,.35,1)", TICK_MS = 3600, SNAP_DELAY = 1300;
 
-type Item = ArtCard & { price: string; image: string | null; linkSlug: string };
+type Item = ShopifyProduct;
 
 /** "Best of Indian art": a slow carousel with prev/next arrows; a plain swipe row on phones or with reduced motion. */
 export default function BestStrip({ items }: { items: Item[] }) {
@@ -58,20 +57,19 @@ export default function BestStrip({ items }: { items: Item[] }) {
   };
 
   const card = (c: Item, key: string, style?: React.CSSProperties, hidden = false) => (
-    <Link key={key} href={`/product/${c.linkSlug}`} className="best-card" style={style} aria-hidden={hidden || undefined} tabIndex={hidden ? -1 : undefined}>
+    <Link key={key} href={`/product/${c.handle}`} className="best-card" style={style} aria-hidden={hidden || undefined} tabIndex={hidden ? -1 : undefined}>
       <div className="img">
-        {c.image ? <img src={c.image} alt={`${c.craft} from ${c.city}`} /> : <Photo media={c.photo} alt={`${c.craft} from ${c.city}`} />}
+        {c.image ? <img src={c.image} alt={c.title} /> : null}
       </div>
       <div className="body">
-        <span className="craft">{c.craft}</span>
-        <span className="place">{c.city} · {c.state}</span>
+        <span className="craft">{c.title}</span>
         <span className="price">{c.price}</span>
       </div>
     </Link>
   );
 
   if (!animate) {
-    return <div className="best-viewport"><div className="best-track static">{items.map((c) => card(c, c.productSlug))}</div></div>;
+    return <div className="best-viewport"><div className="best-track static">{items.map((c) => card(c, c.handle))}</div></div>;
   }
 
   // Three copies make the loop seamless; only the middle copy is reachable by keyboard and screen readers.
@@ -88,7 +86,7 @@ export default function BestStrip({ items }: { items: Item[] }) {
       <div className="best-track" style={{ transform: `translateX(${-(pos * (W + G) + W / 2)}px)`, transition: snap ? "none" : `transform ${EASE}` }}>
         {loop.map((c, i) => {
           const on = i === pos;
-          return card(c, `${c.productSlug}-${i}`, {
+          return card(c, `${c.handle}-${i}`, {
             transform: `scale(${on ? 1.14 : 0.94})`, opacity: on ? 1 : 0.62, zIndex: on ? 2 : 1,
             borderColor: on ? "var(--madder)" : undefined, boxShadow: on ? "0 22px 44px rgba(36,31,26,.22)" : "none",
             transition: snap ? "none" : `transform ${EASE}, opacity ${EASE}, box-shadow ${EASE}`,
