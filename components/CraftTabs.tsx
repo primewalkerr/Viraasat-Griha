@@ -20,7 +20,7 @@ function Film({ m }: { m: Media }) {
   );
 }
 
-type Item = CraftTab & { productSlug: string; price: string; image: string | null; real: boolean };
+type Item = CraftTab & { productSlug: string; price: string; image: string | null; real: boolean; linkSlug: string };
 
 export default function CraftTabs({ cityName, crafts, preview }: {
   cityName: string; crafts: Item[]; preview: boolean;
@@ -94,16 +94,16 @@ export default function CraftTabs({ cityName, crafts, preview }: {
         {cur.real ? (
           <div className="shop-grid single">
             <div className="card shop-card">
-              <Link href={`/product/${cur.productSlug}`} aria-label={cur.name} className="img">
+              <Link href={`/product/${cur.linkSlug}`} aria-label={cur.name} className="img">
                 {cur.image ? <img src={cur.image} alt={`${cur.name} from ${cityName}`} /> : <Photo media={cur.thumb} alt={`${cur.name} from ${cityName}`} />}
               </Link>
               <div className="body">
-                <Link href={`/product/${cur.productSlug}`} className="nm">{cur.name}</Link>
+                <Link href={`/product/${cur.linkSlug}`} className="nm">{cur.name}</Link>
                 <span className="maker">Made by hand in {cityName}</span>
                 <div className="buy">
                   <span className="price">{cur.price}</span>
                   <form action={addToBag}>
-                    <input type="hidden" name="productSlug" value={cur.productSlug} />
+                    <input type="hidden" name="productSlug" value={cur.linkSlug} />
                     <button type="submit" className="btn" style={{ padding: "10px 18px", fontSize: 14 }}>Add to bag</button>
                   </form>
                 </div>
@@ -114,12 +114,12 @@ export default function CraftTabs({ cityName, crafts, preview }: {
           <div className="shop-grid">
             {variants.map((v) => (
               <div key={v.name} className="card shop-card">
-                <Link href={`/product/${cur.productSlug}`} aria-label={v.name} className="img">
+                <Link href={`/product/${cur.linkSlug}`} aria-label={v.name} className="img">
                   <Photo media={cur.thumb} alt="Placeholder product photo" />
                   <span className="tag">{v.tag}</span>
                 </Link>
                 <div className="body">
-                  <Link href={`/product/${cur.productSlug}`} className="nm">{v.name}</Link>
+                  <Link href={`/product/${cur.linkSlug}`} className="nm">{v.name}</Link>
                   <span className="maker">Workshop to be added</span>
                   <div className="buy">
                     <span className="price">{v.price}</span>

@@ -7,7 +7,7 @@ import Photo from "./Photo";
 
 const W = 280, G = 72, EASE = "1.2s cubic-bezier(.65,0,.35,1)", TICK_MS = 3600, SNAP_DELAY = 1300;
 
-type Item = ArtCard & { price: string; image: string | null };
+type Item = ArtCard & { price: string; image: string | null; linkSlug: string };
 
 /** "Best of Indian art": a slow carousel with prev/next arrows; a plain swipe row on phones or with reduced motion. */
 export default function BestStrip({ items }: { items: Item[] }) {
@@ -58,7 +58,7 @@ export default function BestStrip({ items }: { items: Item[] }) {
   };
 
   const card = (c: Item, key: string, style?: React.CSSProperties, hidden = false) => (
-    <Link key={key} href={`/product/${c.productSlug}`} className="best-card" style={style} aria-hidden={hidden || undefined} tabIndex={hidden ? -1 : undefined}>
+    <Link key={key} href={`/product/${c.linkSlug}`} className="best-card" style={style} aria-hidden={hidden || undefined} tabIndex={hidden ? -1 : undefined}>
       <div className="img">
         {c.image ? <img src={c.image} alt={`${c.craft} from ${c.city}`} /> : <Photo media={c.photo} alt={`${c.craft} from ${c.city}`} />}
       </div>

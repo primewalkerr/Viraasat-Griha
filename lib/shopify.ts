@@ -117,13 +117,16 @@ export async function getCollectionProducts(handle: string): Promise<ShopifyProd
   return (data?.collectionByHandle?.products.edges ?? []).map((e) => toProduct(e.node));
 }
 
-export type ResolvedPrice = { price: string; value: number; image: string | null; variantId: string | null; real: boolean };
+/** `linkSlug` is what a card should actually link to (and, for a cart action, which handle to add) —
+ *  the real item's own handle when it's the only one, otherwise the craft's overview slug. */
+export type ResolvedPrice = { price: string; value: number; image: string | null; variantId: string | null; real: boolean; linkSlug: string };
 
 /**
  * A representative price/photo for each craft card on a listing grid: the cheapest real product
  * in its live Shopify collection when one has products, the single derived-handle match or dummy
- * placeholder otherwise. Cards without a card.handle to link to (a collection card) should still
- * link to the craft overview page (`/product/<productSlug>`), which then shows the full grid.
+ * placeholder otherwise. When a collection has exactly one real item, `linkSlug` points straight at
+ * that item's own handle (skipping the craft overview page); with zero or several items it points
+ * at the craft's own slug instead, since there's either nothing real to link to yet or a choice to make.
  */
 export async function resolveCardPrices(
   cards: { productSlug: string; shopLive: boolean; collectionHandle: string | null }[],
@@ -136,13 +139,17 @@ export async function resolveCardPrices(
   withCollection.forEach((c, i) => {
     const items = collectionResults[i];
     const cheapest = items.length ? items.reduce((a, b) => (b.amount < a.amount ? b : a)) : null;
-    if (cheapest) out.set(c.productSlug, { price: cheapest.price, value: cheapest.amount, image: cheapest.image, variantId: cheapest.variantId, real: true });
-    else remaining.push(c.productSlug);
+    if (cheapest) {
+      out.set(c.productSlug, {
+        price: cheapest.price, value: cheapest.amount, image: cheapest.image, variantId: cheapest.variantId, real: true,
+        linkSlug: items.length === 1 ? items[0].handle : c.productSlug,
+      });
+    } else remaining.push(c.productSlug);
   });
   for (const c of cards) if (!(c.shopLive && c.collectionHandle)) remaining.push(c.productSlug);
 
   const fallback = await resolvePrices(remaining);
-  for (const slug of remaining) out.set(slug, fallback.get(slug)!);
+  for (const slug of remaining) out.set(slug, { ...fallback.get(slug)!, linkSlug: slug });
   return out;
 }
 
@@ -157,8 +164,8 @@ export async function resolvePrices(productSlugs: string[]): Promise<Map<string,
   for (const slug of productSlugs) {
     const p = real.get(slug);
     out.set(slug, p
-      ? { price: p.price, value: p.amount, image: p.image, variantId: p.variantId, real: true }
-      : { price: dummyPrice(slug), value: dummyPriceValue(slug), image: null, variantId: null, real: false });
+      ? { price: p.price, value: p.amount, image: p.image, variantId: p.variantId, real: true, linkSlug: slug }
+      : { price: dummyPrice(slug), value: dummyPriceValue(slug), image: null, variantId: null, real: false, linkSlug: slug });
   }
   return out;
 }

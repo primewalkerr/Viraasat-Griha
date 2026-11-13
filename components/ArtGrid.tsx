@@ -17,7 +17,7 @@ type Sort = (typeof SORTS)[number][0];
 const toggle = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 const uniq = (a: string[]) => [...new Set(a)];
 
-type Item = ArtCard & { price: string; value: number; image: string | null };
+type Item = ArtCard & { price: string; value: number; image: string | null; linkSlug: string };
 
 export default function ArtGrid({ items, soonLabel }: { items: Item[]; soonLabel: string }) {
   const [crafts, setCrafts] = useState<string[]>([]);
@@ -125,7 +125,7 @@ export default function ArtGrid({ items, soonLabel }: { items: Item[]; soonLabel
       ) : (
         <div className="art-grid">
           {list.map((a) => (
-            <Link key={a.key} href={`/product/${a.productSlug}`} className="card art-card">
+            <Link key={a.key} href={`/product/${a.linkSlug}`} className="card art-card">
               <div className="img">
                 {a.image ? <img src={a.image} alt={`${a.craft} from ${a.city}`} className="ph" /> : <Photo media={a.photo} alt={`${a.craft} from ${a.city}`} className="ph" />}
                 {!a.shopLive && <span className="tag soon">{soonLabel}</span>}
