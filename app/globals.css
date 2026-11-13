@@ -370,6 +370,7 @@ a:hover { color: var(--madder); }
 .shop-card .nm { font-family: var(--display); font-size: 28px; font-weight: 600; line-height: 1.1; color: var(--indigo); text-decoration: none; }
 .shop-card .maker { font-size: 15px; color: var(--muted); }
 .shop-card .buy { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.shop-card .buy .btn { min-height: 0; }
 .shop-card .price { font-size: 18px; font-weight: 600; color: var(--ink); }
 .stores { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 32px; }
 .store { background: var(--ivory-card); border: 1px solid var(--line); border-top: 4px solid var(--indigo); padding: 24px 28px 28px; display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: var(--ink); }
